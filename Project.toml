@@ -1,0 +1,4 @@
+name = "LatticeDecoder"
+uuid = "0e212fe5-0191-42a4-a4df-cda88f5f21dc"
+authors = ["Timo <41513434+timohillmann@users.noreply.github.com>"]
+version = "0.1.0"
