@@ -166,6 +166,20 @@ function load_toric4d_hz()
     return matrix(Z2, hz)
 end
 
+function load_toric4d_hx()
+    # the check matrix is stored as a .txt file. load and convert to matrix
+    hx = readdlm("data/generator_matrices/binary_codes/Toric3D_3/hx.txt")
+    hx = Int.(hx)
+    return matrix(Z2, hx)
+end
+
+function load_toric4d_hz()
+    # the check matrix is stored as a .txt file. load and convert to matrix
+    hz = readdlm("data/generator_matrices/binary_codes/Toric3D_3/hz.txt")
+    hz = Int.(hz)
+    return matrix(Z2, hz)
+end
+
 
 Hx = load_toric4d_hx();
 Hz = load_toric4d_hz();
