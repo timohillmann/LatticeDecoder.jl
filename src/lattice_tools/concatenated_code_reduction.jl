@@ -166,14 +166,14 @@ function load_toric4d_hz()
     return matrix(Z2, hz)
 end
 
-function load_toric4d_hx()
+function load_toric3d_hx()
     # the check matrix is stored as a .txt file. load and convert to matrix
     hx = readdlm("data/generator_matrices/binary_codes/Toric3D_3/hx.txt")
     hx = Int.(hx)
     return matrix(Z2, hx)
 end
 
-function load_toric4d_hz()
+function load_toric3d_hz()
     # the check matrix is stored as a .txt file. load and convert to matrix
     hz = readdlm("data/generator_matrices/binary_codes/Toric3D_3/hz.txt")
     hz = Int.(hz)
@@ -188,5 +188,15 @@ M_q = 1 / sqrt(2) * stack_gkp_generator(Hx);
 M_p = 1 / sqrt(2) * stack_gkp_generator(Hz);
 
 num_logicals = 6
+
+@assert num_logicals ≈ log2(abs(det(M_q))) + log2(abs(det(M_p)))
+
+Hx = load_toric3d_hx();
+Hz = load_toric3d_hz();
+
+M_q = 1 / sqrt(2) * stack_gkp_generator(Hx);
+M_p = 1 / sqrt(2) * stack_gkp_generator(Hz);
+
+num_logicals = 3
 
 @assert num_logicals ≈ log2(abs(det(M_q))) + log2(abs(det(M_p)))
