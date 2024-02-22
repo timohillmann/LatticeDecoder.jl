@@ -33,3 +33,6 @@
 - We would like to allow for non-CSS codes and thus logical operators of length `2n`
 - `M_q` and `M_p` correspond to `H_X` and `H_Z` respectively, in CSS codes.
 - $D(\vec{\xi}) = e^{-(\vec{\xi}^T J \vec{x}) \sqrt{2 \pi } i }$ which means displacements are expressed in lattice units. So physical units are obtained by multiplying by $\sqrt{2 \pi}$.
+
+## Useful Resources
+- For easy access to (quantum) codes, we can use the 'CodingTheory' package in Julia.
