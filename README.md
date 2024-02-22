@@ -23,6 +23,7 @@
         1. 
 2. `examples/` contains example code for using the decoding algorithms and how to perform large scale simulation runs.
     1. `binary_code_to_qec_simulation.ipynb` contains an example of how to use the decoding algorithms to simulate a the rep code, includiing construction of the lattice generator matrix for different distances, initiliazing the Tannger graph and running the BP algorithm on it, both on th reduced basis and the overcomplete basis.
+    2. `classical_ldlc_simulation.ipynb` contains an example of how to use the decoding algorithms to simulate a the classical low density lattice code, includiing construction of the lattice generator matrix for different distances, initiliazing the Tannger graph and running the BP algorithm on it, both on th reduced basis and the overcomplete basis.
 
 ## Conventions
 - Quadrature ordering is `qqpp`
