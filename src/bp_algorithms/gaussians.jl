@@ -1,0 +1,187 @@
+
+
+const MIN_VAR::Float64 = 1e-4
+
+"""
+    gaussian
+
+A struct representing a (periodic) Gaussian distribution with mean `mean`, variance `var`, weight `weight`,
+and optional periodic extension with period `period`.
+"""
+mutable struct gaussian
+    mean::Float64
+    var::Float64
+    weight::Float64
+    period::Float64
+    gaussian(mean, var, weight, period) =
+        new(mean, max(var, MIN_VAR), weight, abs(period))  # TODO: Is the abs necessary?
+end
+
+gaussian(mean::Float64, var::Float64, weight::Float64) =
+    gaussian(mean, var, weight, 0.0)
+
+gaussian(mean::Float64, var::Float64) = gaussian(mean, var, 1.0, 0.0)
+
+Base.zero(gaussian) = 0.0
+
+"""
+    prod!(g1::gaussian, g2::gaussian)
+
+Update the Gaussian distribution `g1` to be the product of `g1` and `g2`. The
+resulting distribution will have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively. The resulting weight `c` is also computed and assigned to `g1`.
+"""
+function Base.prod!(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+
+    g1.mean = m
+    g1.var = Δ
+    g1.weight = c * g1.weight * g2.weight
+end
+
+"""
+    nearest(g::gaussian, y::Float64, e::Float64=10.0)
+
+Compute the two nearest Gaussian distributions `gL` and `gR` to a given
+value `y`, based on a reference distribution `g`. An optional arugment `e`
+describse the maximum distance allowed between the mean of a `gaussian`
+distribution and the target value `y` for it to be considered a candidate for
+the nearest distribution.
+
+# Returns
+
+A tuple `(gL, gR)` of `gaussian` distributions, where `gL` and `gR` are the two
+nearest `gaussian` distributions to `y`.
+"""
+function nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.5)
+
+    m = g.mean
+    rhs = -(m - y) * h
+    b1 = floor(rhs)
+    b2 = b1 + 1
+
+    # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
+    gL = gaussian(m + (b1 / h), g.var, g.weight)
+    gR = gaussian(m + (b2 / h), g.var, g.weight)
+
+    # gL and gR are preprocessed as in Liu, eqs. 22-24 
+    if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
+        gR = gL
+    elseif ((y - e) < gR.mean < (y + e)) && !((y - e) < gL.mean < (y + e))
+        gL = gR
+    end
+    return (gL, gR)
+end
+
+
+
+"""
+    sum(g1::gaussian, g2::gaussian)
+
+Compute the sum of two Gaussian distributions `g1` and `g2`. The resulting
+distribution will have mean and variance given by:
+
+    m = m1 * w1 + m2 * w2
+    Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively, and `w1` and `w2` are weights that determine the contribution
+of each distribution.
+"""
+function Base.sum(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    if isapprox(g2.weight, 0.0) && !isapprox(g1.weight, 0.0)
+        return gaussian(g1.mean, g1.var, 1.0)
+    elseif isapprox(g1.weight, 0.0) && !isapprox(g2.weight, 0.0)
+        return gaussian(g2.mean, g2.var, 1.0)
+    elseif isapprox(g2.weight, 0.0) && !isapprox(g1.weight, 0.0)
+        if g1.weight > g2.weight
+            return gaussian(g1.mean, g1.var)
+        else
+            return gaussian(g2.mean, g2.var)
+        end
+    else
+        w1 = g1.weight / (g1.weight + g2.weight)
+        w2 = g2.weight / (g1.weight + g2.weight)
+        m = m1 * w1 + m2 * w2
+        Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
+        return gaussian(m, Δ)
+    end
+end
+
+# Unused functions
+function Base.sum!(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    w1 = Δ1 / (Δ1 + Δ2)
+    w2 = Δ2 / (Δ1 + Δ2)
+    m = m * w1 + m2 * w2
+    Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
+
+    g1.mean = m
+    g1.var = max(Δ, MIN_VAR)
+    g1.weight = 1.0
+end
+
+function Base.prod(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+    return gaussian(m, Δ, c)
+end
+
+"""
+    prod(g1::gaussian, g2::gaussian)
+
+Compute the product of two Gaussian distributions `g1` and `g2`. The resulting
+distribution will have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively. The resulting weight `c` is also computed and the results are
+modified in place.
+"""
+function Base.prod!(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+
+    g1.mean = m
+    g1.var = Δ
+    g1.weight = c * g1.weight * g2.weight
+end
+
+
+# g1 = gaussian(3.2, 0.5, 1., 0.5)
+
