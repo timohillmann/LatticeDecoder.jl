@@ -1,4 +1,5 @@
 include("gaussians.jl")
+# include("gaussian_log_weight.jl")
 using SparseArrays
 
 
@@ -115,7 +116,7 @@ initialize_tanner_graph(H::Matrix) = initialize_tanner_graph(sparse(H))
 
 
 
-# H = Float64[1 1 0; 0 1 1; 1 0 1]; # 3x2 matrix
+# H = Float64[1.01 1.02 0; 0 1.11 1.12; 1.31 0 1.32]; # 3x2 matrix
 # H = sparse(H)
 # tg = initialize_tanner_graph(H)
 

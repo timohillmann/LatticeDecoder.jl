@@ -1,12 +1,15 @@
-using LatticeDecoder
+# using LatticeDecoder
+include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl");
+include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl");
+include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/code_constructors/classical_ldlc.jl");
 
 # Parameters
 n = 256;
 d = 5;
 H = classical_ldlc(d, n, true);
 
-
 # Initialize Tanner graph
+
 tg = initialize_tanner_graph(H);
 
 σ = 0.15;
@@ -87,14 +90,14 @@ end
 
 
 using Plots
-samples = 500;
+samples = 5000;
 max_iter = 25;
-
+σ = 0.24 # lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.7 * σ, 7)
+sigmas = range(1.1 * σ, 0.9 * σ, 4)
 
 d = 5
-for n in [100, 256]
+for n in [256]
     H = classical_ldlc(d, n, true)
     ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
     plot!(p, snr_db.(sigmas), ber, xlabel="σ", ylabel="BER", label="[$(n), $(d)]", title="Bit Error Rate vs. σ", lw=2,
@@ -102,3 +105,5 @@ for n in [100, 256]
 end
 # set x and y axis in log scale
 plot!(p, yscale=:log10)
+# display plot
+display(p)

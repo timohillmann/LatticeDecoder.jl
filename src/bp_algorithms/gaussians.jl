@@ -1,6 +1,8 @@
 
 
-const MIN_VAR::Float64 = 1e-4
+const MIN_VAR::Float64 = 1e-3
+
+abstract type Gaussian end
 
 """
     gaussian
@@ -8,13 +10,13 @@ const MIN_VAR::Float64 = 1e-4
 A struct representing a (periodic) Gaussian distribution with mean `mean`, variance `var`, weight `weight`,
 and optional periodic extension with period `period`.
 """
-mutable struct gaussian
+mutable struct gaussian <: Gaussian
     mean::Float64
     var::Float64
     weight::Float64
     period::Float64
     gaussian(mean, var, weight, period) =
-        new(mean, max(var, MIN_VAR), weight, abs(period))  # TODO: Is the abs necessary?
+        new(mean, max(var, MIN_VAR), weight, period)  # TODO: Is the abs necessary?
 end
 
 gaussian(mean::Float64, var::Float64, weight::Float64) =
@@ -23,6 +25,8 @@ gaussian(mean::Float64, var::Float64, weight::Float64) =
 gaussian(mean::Float64, var::Float64) = gaussian(mean, var, 1.0, 0.0)
 
 Base.zero(gaussian) = 0.0
+
+Base.copy(g::gaussian) = gaussian(g.mean, g.var, g.weight, g.period)
 
 """
     prod!(g1::gaussian, g2::gaussian)
@@ -65,16 +69,15 @@ the nearest distribution.
 A tuple `(gL, gR)` of `gaussian` distributions, where `gL` and `gR` are the two
 nearest `gaussian` distributions to `y`.
 """
-function nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.5)
-
+function nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.0)
     m = g.mean
     rhs = -(m - y) * h
     b1 = floor(rhs)
     b2 = b1 + 1
 
     # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
-    gL = gaussian(m + (b1 / h), g.var, g.weight)
-    gR = gaussian(m + (b2 / h), g.var, g.weight)
+    gL = gaussian(m - (b1 / h), g.var, g.weight)
+    gR = gaussian(m - (b2 / h), g.var, g.weight)
 
     # gL and gR are preprocessed as in Liu, eqs. 22-24 
     if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
@@ -110,7 +113,7 @@ function Base.sum(g1::gaussian, g2::gaussian)
         return gaussian(g1.mean, g1.var, 1.0)
     elseif isapprox(g1.weight, 0.0) && !isapprox(g2.weight, 0.0)
         return gaussian(g2.mean, g2.var, 1.0)
-    elseif isapprox(g2.weight, 0.0) && !isapprox(g1.weight, 0.0)
+    elseif isapprox(g2.weight, 0.0) && isapprox(g1.weight, 0.0)
         if g1.weight > g2.weight
             return gaussian(g1.mean, g1.var)
         else

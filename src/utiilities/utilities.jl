@@ -48,3 +48,14 @@ end
 function lattice_capacity_std()
     return 1 / sqrt(2 * pi * ℯ)
 end
+
+
+function signal_to_noise_ratio(σ::Float64)
+    return 1 / (2 * pi * exp(1) * σ^2)
+end
+
+snr(σ::Float64) = signal_to_noise_ratio(σ)
+
+function snr_db(σ::Float64)
+    return 10 * log10(snr(σ))
+end

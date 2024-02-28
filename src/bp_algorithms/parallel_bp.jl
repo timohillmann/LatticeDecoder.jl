@@ -1,6 +1,5 @@
-include("gaussians.jl")
 include("tanner_graph.jl")
-
+include("gaussians.jl")
 
 
 """
@@ -63,6 +62,7 @@ function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
         vn = tg.var_nodes[vn_idx]
         vn.messages[idx].mean = -(mean_sum - check_node.messages[i].mean * edge_weight) / edge_weight
         vn.messages[idx].var = (var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2
+        vn.messages[idx].period = edge_weight
     end
 end
 
@@ -101,7 +101,7 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, edge_weight, 1.5)
+                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
                 prod!(gL, g1)
                 prod!(gR, g2)
             end
