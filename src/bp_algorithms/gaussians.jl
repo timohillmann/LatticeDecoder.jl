@@ -1,6 +1,6 @@
 
 
-const MIN_VAR::Float64 = 1e-3
+const MIN_VAR::Float64 = 5e-4
 
 abstract type Gaussian end
 
@@ -27,6 +27,15 @@ gaussian(mean::Float64, var::Float64) = gaussian(mean, var, 1.0, 0.0)
 Base.zero(gaussian) = 0.0
 
 Base.copy(g::gaussian) = gaussian(g.mean, g.var, g.weight, g.period)
+
+struct NearestAlloc
+    gL::gaussian
+    gR::gaussian
+end
+
+
+Alloc = NearestAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5))
+
 
 """
     prod!(g1::gaussian, g2::gaussian)
@@ -88,6 +97,34 @@ function nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.0)
     return (gL, gR)
 end
 
+
+function nearest_allocationless(g::gaussian, y::Float64, h::Float64, Alloc::NearestAlloc, e::Float64=1.0)
+    m = g.mean
+    rhs = -(m - y) * h
+    b1 = floor(rhs)
+    b2 = b1 + 1
+
+    # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
+    gL = Alloc.gL
+    gR = Alloc.gR
+
+    gL.mean = m - (b1 / h)
+    gR.mean = m - (b2 / h)
+    gL.var = g.var
+    gR.var = g.var
+    gL.weight = g.weight
+    gR.weight = g.weight
+
+    # gL and gR are preprocessed as in Liu, eqs. 22-24 
+    if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
+        gR = gL
+    elseif ((y - e) < gR.mean < (y + e)) && !((y - e) < gL.mean < (y + e))
+        gL = gR
+    end
+    return (gL, gR)
+end
+
+nearest_allocationless(g::gaussian, y::Float64, h::Float64, e::Float64=1.0) = nearest_allocationless(g, y, h, Alloc, e)
 
 
 """

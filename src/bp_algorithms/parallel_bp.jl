@@ -101,7 +101,8 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                # g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                g1, g2 = nearest_allocationless(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
                 prod!(gL, g1)
                 prod!(gR, g2)
             end
