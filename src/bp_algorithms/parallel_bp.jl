@@ -204,6 +204,26 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
     bp_result[vn_idx] = vn.message.mean
 end
 
+function variable_node_mother_message(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+    vn = tg.var_nodes[vn_idx]
+
+    Alloc.gL.mean = vn.message.mean
+    Alloc.gR.mean = vn.message.mean
+    Alloc.gL.var = vn.message.var
+    Alloc.gR.var = vn.message.var
+    Alloc.gL.weight = 1.0
+    Alloc.gR.weight = 1.0
+
+    for i = 1:length(vn.messages)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        prod!(Alloc.gL, Alloc.g1)
+        prod!(Alloc.gR, Alloc.g2)
+    end
+    return (gL, gR)
+end
+
+
+
 variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64) = variable_node_decision_allocationless!(bp_result, tg, vn_idx, VarNodeAlloc)
 
 
