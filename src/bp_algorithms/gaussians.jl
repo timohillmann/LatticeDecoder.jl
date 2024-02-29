@@ -29,15 +29,15 @@ Base.zero(gaussian) = 0.0
 Base.copy(g::gaussian) = gaussian(g.mean, g.var, g.weight, g.period)
 
 struct TwoGaussianAlloc
-    gL::Gaussian
-    gR::Gaussian
+    gL::gaussian
+    gR::gaussian
 end
 
 mutable struct FourGaussianAlloc
-    gL::Gaussian
-    gR::Gaussian
-    g1::Gaussian
-    g2::Gaussian
+    gL::gaussian
+    gR::gaussian
+    g1::gaussian
+    g2::gaussian
 end
 
 
@@ -223,14 +223,38 @@ function sum!(g_out::gaussian, g1::gaussian, g2::gaussian)
     Δ1 = g1.var
     Δ2 = g2.var
 
-    w1 = Δ1 / (Δ1 + Δ2)
-    w2 = Δ2 / (Δ1 + Δ2)
-    m = m1 * w1 + m2 * w2
-    Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
-
-    g_out.mean = m
-    g_out.var = max(Δ, MIN_VAR)
-    g_out.weight = 1.0
+    if isapprox(g2.weight, 0.0) && !isapprox(g1.weight, 0.0)
+        g_out.mean = 1.0 * g1.mean
+        g_out.var = max(1.0 * g1.var, MIN_VAR)
+        g_out.weight = 1.0
+        # return gaussian(g1.mean, g1.var, 1.0)
+    elseif isapprox(g1.weight, 0.0) && !isapprox(g2.weight, 0.0)
+        g_out.mean = 1.0 * g2.mean
+        g_out.var = max(1.0 * g2.var, MIN_VAR)
+        g_out.weight = 1.0
+        # return gaussian(g2.mean, g2.var, 1.0)
+    elseif isapprox(g2.weight, 0.0) && isapprox(g1.weight, 0.0)
+        if g1.weight > g2.weight
+            # return gaussian(g1.mean, g1.var)
+            g_out.mean = 1.0 * g1.mean
+            g_out.var = max(1.0 * g1.var, MIN_VAR)
+            g_out.weight = 1.0
+        else
+            # return gaussian(g2.mean, g2.var)
+            g_out.mean = 1.0 * g2.mean
+            g_out.var = max(1.0 * g2.var, MIN_VAR)
+            g_out.weight = 1.0
+        end
+    else
+        w1 = g1.weight / (g1.weight + g2.weight)
+        w2 = g2.weight / (g1.weight + g2.weight)
+        m = m1 * w1 + m2 * w2
+        Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
+        g_out.mean = m
+        g_out.var = max(Δ, MIN_VAR)
+        g_out.weight = 1.0
+        # return gaussian(m, Δ)
+    end
 end
 
 
@@ -273,7 +297,3 @@ function Base.prod!(g1::gaussian, g2::gaussian)
     g1.var = Δ
     g1.weight = c * g1.weight * g2.weight
 end
-
-
-# g1 = gaussian(3.2, 0.5, 1., 0.5)
-
