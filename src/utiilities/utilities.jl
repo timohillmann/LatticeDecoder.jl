@@ -10,6 +10,8 @@ function sample_error(σ::Float64, n::Int)
 end
 
 
+
+
 """
     hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
 
@@ -21,21 +23,21 @@ end
 
 
 """
-    count_bit_errors(x::AbstractArray)
+    count_symbol_errors(x::AbstractArray)
 
 Count the number of bit errors in the decoded codeword. The codeword is assumed to be the all-zero vector.
 """
-function count_bit_errors(x::AbstractArray)
+function count_symbol_errors(x::AbstractArray)
     return sum(x .!= 0)
 end
 
 
 """
-    count_bit_errors(x::AbstractArray, y::AbstractArray)
+    count_symbol_errors(x::AbstractArray, y::AbstractArray)
 
 Count the number of bit errors between two codewords x and y.
 """
-function count_bit_errors(x::AbstractArray, y::AbstractArray)
+function count_symbol_errors(x::AbstractArray, y::AbstractArray)
     return sum(x .!= y)
 
 end

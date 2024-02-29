@@ -45,19 +45,19 @@ end
     Compute the new messages for the neighbouring variable nodes of a check node with index `cn_idx`.
 """
 function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
-    check_node = tg.check_nodes[cn_idx]
+    @views check_node = tg.check_nodes[cn_idx]
 
     # compute the average mean and variance of the neighbouring variable nodes
     mean_sum = 0.0
     var_sum = 0.0
-    for i = 1:length(check_node.neighbours)
+    @inbounds @fastmath for i = 1:length(check_node.neighbours)
         edge_weight = check_node.neighbours[i][2]
         mean_sum += edge_weight * check_node.messages[i].mean
         var_sum += edge_weight^2 * check_node.messages[i].var
     end
 
     # compute the new messages for the neighbouring variable nodes
-    for i = 1:length(check_node.neighbours)
+    @inbounds for i = 1:length(check_node.neighbours)
         vn_idx, edge_weight = check_node.neighbours[i]
         idx = check_node.pos_in_var_neighbour[i]
         vn = tg.var_nodes[vn_idx]
