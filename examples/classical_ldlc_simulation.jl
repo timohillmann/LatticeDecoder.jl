@@ -1,8 +1,9 @@
 # using LatticeDecoder
-using Base.Threads
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl");
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl");
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/code_constructors/classical_ldlc.jl");
+using Distributed
+addprocs(8);
+@everywhere include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl");
+@everywhere include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl");
+@everywhere include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/code_constructors/classical_ldlc.jl");
 
 # Parameters
 n = 256;
@@ -15,37 +16,18 @@ tg = initialize_tanner_graph(H);
 
 σ = 0.15;
 
-"""
-    sample_error(σ::Float64, n::Int)
 
-Sample a Gaussian error vector with standard deviation `σ` and length `n`.
-"""
-function sample_error(σ::Float64, n::Int)
+@everywhere function sample_error(σ::Float64, n::Int)
     return σ * randn(n)
 end
 
-
-"""
-    hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
-
-Compute the hard decision using the belief propagation result.
-"""
 function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
     return Int64.(round.(H * bp_result))
 end
 
-
-"""
-    count_bit_errors(x::AbstractArray)
-
-Count the number of bit errors in the decoded codeword. The codeword is assumed to be the all-zero vector.
-"""
-function count_symbol_errors(x::AbstractArray)
+@everywhere function count_symbol_errors(x::AbstractArray)
     return sum(x .!= 0)
 end
-
-
-
 
 
 y = sample_error(σ, n);
@@ -57,22 +39,23 @@ println("Number of bit errors: ", count_symbol_errors(dec))
 
 
 
-"""
-    ec_experiment(H, σ, max_iter, samples)
-
-Run an error correction experiment on a parity-check matrix `H` with a Gaussian error vector of standard deviation `σ`.
-The experiment is repeated `samples` times and the average number of bit errors, i.e., the bit error rate, is returned.
-"""
-function ec_experiment(H, σ, max_iter, samples)
+@everywhere function ec_experiment(H, σ, max_iter, samples)
     tg = initialize_tanner_graph(H)
-    errors = 0
-    for i = 1:samples
+    println("Running experiment with σ = ", σ, " with $(nworkers()) workers ")
+    errors = @distributed (+) for i = 1:samples
         y = sample_error(σ, size(H, 2))
-        tg = initialize_tanner_graph(H)
         bp_result = run_belief_propagation!(tg, y, σ, max_iter)
         dec = hard_decision(bp_result, H)
-        errors += count_symbol_errors(dec)
+        count_symbol_errors(dec)
     end
+    # errors = 0
+    # for i = 1:samples
+    #     y = sample_error(σ, size(H, 2))
+    #     tg = initialize_tanner_graph(H)
+    #     bp_result = run_belief_propagation!(tg, y, σ, max_iter)
+    #     dec = hard_decision(bp_result, H)
+    #     errors += count_symbol_errors(dec)
+    # end
 
     return errors / samples / size(H, 1)
 end
@@ -94,7 +77,7 @@ end
 
 using Plots
 samples = 5000;
-max_iter = 15;
+max_iter = 25;
 σ = lattice_capacity_std()
 p = plot()
 sigmas = range(σ, 0.8 * σ, 4)

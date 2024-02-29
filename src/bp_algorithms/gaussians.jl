@@ -297,3 +297,98 @@ function Base.prod!(g1::gaussian, g2::gaussian)
     g1.var = Δ
     g1.weight = c * g1.weight * g2.weight
 end
+
+
+"""
+    divide(g1::gaussian, g2::gaussian)
+
+Compute the division of two Gaussian distributions `g1` and `g2`. The resulting
+distribution will have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively. The resulting distribution has the correct weight `β`. 
+The expression is obtained from http://davmre.github.io/blog/statistics/2015/03/27/gaussian_quotient
+
+The function returns a new `gaussian` distribution with weight `β`.
+
+"""
+function divide(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+    c1 = g1.weight
+    c2 = g2.weight
+
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+    return gaussian(m, Δ, β)
+end
+
+
+"""
+    divide!(g1::gaussian, g2::gaussian)
+
+Divide the Gaussian distribution `g1` by `g2`. The resulting distribution will
+have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively. The resulting distribution has the correct weight `β`.
+
+The results are modified in place.
+"""
+function divide!(g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+    c1 = g1.weight
+    c2 = g2.weight
+
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+
+    g1.mean = m
+    g1.var = Δ
+    g1.weight = β
+end
+
+
+"""
+    divide!(g_out::gaussian, g1::gaussian, g2::gaussian)
+
+Divide the Gaussian distribution `g1` by `g2`. The resulting distribution will
+have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+
+The results are modified in place and written into `g_out`.
+
+"""
+function divide!(g_out::gaussian, g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+    c1 = g1.weight
+    c2 = g2.weight
+
+    Δ = 1 / (1 / Δ1 - 1 / Δ2)
+    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+
+    g_out.mean = m
+    g_out.var = Δ
+    g_out.weight = β
+end
