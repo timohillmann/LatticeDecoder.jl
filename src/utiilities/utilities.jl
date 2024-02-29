@@ -11,7 +11,6 @@ end
 
 
 
-
 """
     hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
 
@@ -43,21 +42,46 @@ function count_symbol_errors(x::AbstractArray, y::AbstractArray)
 end
 
 
+"""
+    lattice_capacity_var()
+
+Return the variance of the Gaussian noise that achieves the capacity of the lattice code.
+"""
 function lattice_capacity_var()
     return 1 / (2 * pi * ℯ)
 end
 
+"""
+    lattice_capacity_std()
+
+Return the standard deviation of the Gaussian noise that achieves the capacity of the lattice code.
+"""
 function lattice_capacity_std()
     return 1 / sqrt(2 * pi * ℯ)
 end
 
 
+"""
+    signal_to_noise_ratio(σ::Float64)
+
+Return the signal-to-noise ratio (SNR) for a given standard deviation `σ`.
+"""
 function signal_to_noise_ratio(σ::Float64)
     return 1 / (2 * pi * exp(1) * σ^2)
 end
 
+"""
+    snr(σ::Float64)
+
+Return the signal-to-noise ratio (SNR) for a given standard deviation `σ`.
+"""
 snr(σ::Float64) = signal_to_noise_ratio(σ)
 
+"""
+    snr_db(σ::Float64)
+
+Return the signal-to-noise ratio (SNR) in decibels for a given standard deviation `σ`.
+"""
 function snr_db(σ::Float64)
     return 10 * log10(snr(σ))
 end

@@ -13,10 +13,7 @@ include("code_constructors/classical_ldlc.jl")
 
 
 # Utilities
-export sample_error, hard_decision, count_bit_errors
-export ec_experiment, lattice_capacity_var, lattice_capacity_std, snr, snr_db
+export sample_error, hard_decision, count_symbol_errors, lattice_capacity_var, lattice_capacity_std, snr, snr_db
 include("utiilities/utilities.jl")
-include("utiilities/simulation.jl")
-
 
 end # module LatticeDecoder
