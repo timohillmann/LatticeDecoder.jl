@@ -28,13 +28,22 @@ Base.zero(gaussian) = 0.0
 
 Base.copy(g::gaussian) = gaussian(g.mean, g.var, g.weight, g.period)
 
-struct NearestAlloc
-    gL::gaussian
-    gR::gaussian
+struct TwoGaussianAlloc
+    gL::Gaussian
+    gR::Gaussian
+end
+
+mutable struct FourGaussianAlloc
+    gL::Gaussian
+    gR::Gaussian
+    g1::Gaussian
+    g2::Gaussian
 end
 
 
-Alloc = NearestAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5))
+
+
+# Alloc = GaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5))
 
 
 """
@@ -98,33 +107,59 @@ function nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.0)
 end
 
 
-function nearest_allocationless(g::gaussian, y::Float64, h::Float64, Alloc::NearestAlloc, e::Float64=1.0)
+function nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Float64=1.0)
+    h = g.period
     m = g.mean
     rhs = -(m - y) * h
     b1 = floor(rhs)
     b2 = b1 + 1
 
-    # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
-    gL = Alloc.gL
-    gR = Alloc.gR
+    left_mean = m - (b1 / h)
+    right_mean = m - (b2 / h)
 
-    gL.mean = m - (b1 / h)
-    gR.mean = m - (b2 / h)
-    gL.var = g.var
-    gR.var = g.var
-    gL.weight = g.weight
-    gR.weight = g.weight
+    g1.mean = left_mean
+    g2.mean = right_mean
+    g1.var = g.var
+    g2.var = g.var
+    g1.weight = g.weight
+    g2.weight = g.weight
 
-    # gL and gR are preprocessed as in Liu, eqs. 22-24 
-    if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
-        gR = gL
-    elseif ((y - e) < gR.mean < (y + e)) && !((y - e) < gL.mean < (y + e))
-        gL = gR
+    if ((y - e) < left_mean < (y + e)) && !((y - e) < right_mean < (y + e))
+        # right gaussian is the same as left
+        g2.mean = left_mean
+
+    elseif ((y - e) < right_mean < (y + e)) && !((y - e) < left_mean < (y + e))
+        g1.mean = right_mean
     end
-    return (gL, gR)
 end
 
-nearest_allocationless(g::gaussian, y::Float64, h::Float64, e::Float64=1.0) = nearest_allocationless(g, y, h, Alloc, e)
+# function nearest_allocationless(g::gaussian, y::Float64, h::Float64, Alloc::GaussianAlloc, e::Float64=1.0)
+#     m = g.mean
+#     rhs = -(m - y) * h
+#     b1 = floor(rhs)
+#     b2 = b1 + 1
+
+#     # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
+#     gL = Alloc.gL
+#     gR = Alloc.gR
+
+#     gL.mean = m - (b1 / h)
+#     gR.mean = m - (b2 / h)
+#     gL.var = g.var
+#     gR.var = g.var
+#     gL.weight = g.weight
+#     gR.weight = g.weight
+
+#     # gL and gR are preprocessed as in Liu, eqs. 22-24 
+#     if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
+#         gR = gL
+#     elseif ((y - e) < gR.mean < (y + e)) && !((y - e) < gL.mean < (y + e))
+#         gL = gR
+#     end
+#     return (gL, gR)
+# end
+
+# nearest_allocationless(g::gaussian, y::Float64, h::Float64, e::Float64=1.0) = nearest_allocationless(g, y, h, Alloc, e)
 
 
 """
@@ -174,13 +209,30 @@ function Base.sum!(g1::gaussian, g2::gaussian)
 
     w1 = Δ1 / (Δ1 + Δ2)
     w2 = Δ2 / (Δ1 + Δ2)
-    m = m * w1 + m2 * w2
+    m = m1 * w1 + m2 * w2
     Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
 
     g1.mean = m
     g1.var = max(Δ, MIN_VAR)
     g1.weight = 1.0
 end
+
+function sum!(g_out::gaussian, g1::gaussian, g2::gaussian)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    w1 = Δ1 / (Δ1 + Δ2)
+    w2 = Δ2 / (Δ1 + Δ2)
+    m = m1 * w1 + m2 * w2
+    Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
+
+    g_out.mean = m
+    g_out.var = max(Δ, MIN_VAR)
+    g_out.weight = 1.0
+end
+
 
 function Base.prod(g1::gaussian, g2::gaussian)
     m1 = g1.mean

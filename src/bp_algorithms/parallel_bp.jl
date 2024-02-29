@@ -1,6 +1,7 @@
 include("tanner_graph.jl")
 include("gaussians.jl")
 
+VarNodeAlloc = FourGaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5))
 
 """
     initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Float64)
@@ -74,7 +75,8 @@ end
 """
 function variable_node_iterations!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        variable_node_messages!(tg, i)
+        # variable_node_messages!(tg, i)
+        variable_node_messages_allocationless!(tg, i)
     end
 end
 
@@ -101,8 +103,7 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                # g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
-                g1, g2 = nearest_allocationless(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
                 prod!(gL, g1)
                 prod!(gR, g2)
             end
@@ -111,6 +112,42 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
     end
 end
 
+function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+    var_node = tg.var_nodes[vn_idx]
+
+    # multiply together all the messages from the neighbouring check nodes
+    # N(w, y_k, simga_k^2) * prod((N_{L, j} + N_{R, j}), j != k)
+    for j = 1:length(var_node.neighbours)
+        cn_idx, edge_weight = var_node.neighbours[j]
+        idx = var_node.pos_in_check_neighbour[j]
+        cn = tg.check_nodes[cn_idx]
+
+
+        Alloc.gL = gaussian(var_node.message.mean, var_node.message.var, 1.0)
+        Alloc.gR = gaussian(var_node.message.mean, var_node.message.var, 1.0)
+        # gL = gaussian(var_node.message.mean, var_node.message.var)
+        # gR = gaussian(var_node.message.mean, var_node.message.var)
+
+        for i = 1:length(var_node.messages)
+            if i != j  # don't include the message from the current check node
+                # g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                nearest!(Alloc.g1, Alloc.g2, var_node.messages[i], var_node.message.mean, 1.5)
+                # g1, g2 = nearest_allocationless(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                prod!(Alloc.gL, Alloc.g1)
+                prod!(Alloc.gR, Alloc.g2)
+                # prod!(gL, Alloc.g1)
+                # prod!(gR, Alloc.g2)
+                # prod!(gL, g1)
+                # prod!(gR, g2)
+            end
+        end
+        # cn.messages[idx] = sum(gL, gR)
+        cn.messages[idx] = sum(Alloc.gL, Alloc.gR)
+        # sum!(cn.messages[idx], Alloc.gL, Alloc.gR)
+    end
+end
+
+variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64) = variable_node_messages_allocationless!(tg, vn_idx, VarNodeAlloc)
 
 """
     decision_step(tg::TannerGraph)
@@ -120,7 +157,8 @@ end
 """
 function decision_step(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        variable_node_decision!(tg.bp_result, tg, i)
+        # variable_node_decision!(tg.bp_result, tg, i)
+        variable_node_decision_allocationless!(tg.bp_result, tg, i)
     end
 end
 
@@ -149,6 +187,37 @@ function variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn
 
     bp_result[vn_idx] = vn.message.mean
 end
+
+
+function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+    vn = tg.var_nodes[vn_idx]
+
+    # gL = Alloc.gL
+    # gR = Alloc.gR
+
+    # gL.mean = vn.message.mean
+    # gR.mean = vn.message.mean
+    # gL.var = vn.message.var
+    # gR.var = vn.message.var
+    # gL.weight = 1.0
+    # gR.weight = 1.0
+
+    Alloc.gL = gaussian(vn.message.mean, vn.message.var)
+    Alloc.gR = gaussian(vn.message.mean, vn.message.var)
+
+    for i = 1:length(vn.messages)
+        # cn_idx, edge_weight = vn.neighbours[i]
+        # g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, 1.5)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        prod!(Alloc.gL, Alloc.g1)
+        prod!(Alloc.gR, Alloc.g2)
+    end
+
+
+    bp_result[vn_idx] = sum(Alloc.gL, Alloc.gR).mean
+end
+
+variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64) = variable_node_decision_allocationless!(bp_result, tg, vn_idx, VarNodeAlloc)
 
 
 """
