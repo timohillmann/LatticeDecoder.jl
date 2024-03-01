@@ -1,4 +1,4 @@
-include("gaussians.jl")
+include("gaussians_log_weight.jl")
 using SparseArrays
 
 
@@ -13,7 +13,7 @@ Check node structure contains its state and a set of neighbouring Nodes.
 """
 mutable struct CheckNode <: AbstractNode #  do i need this? i could 
     neighbours::Vector{Tuple{Int64,Float64}} # Vector{tuple{Int64, Float64}} # Vector of tuples of the form (check node index, edge weight)
-    messages::Vector{gaussian}
+    messages::Vector{gaussian_log_weight}
     pos_in_var_neighbour::Vector{Int64} # Position in the neighbours array of the neighbouring variable node objects
 end
 
@@ -22,10 +22,10 @@ end
 Variable node contains it state and a set of neighbouring Nodes.
 """
 mutable struct VariableNode <: AbstractNode
-    message::gaussian  # do I need this?
+    message::gaussian_log_weight  # do I need this?
     id::Int64
     neighbours::Vector{Tuple{Int64,Float64}} # Vector of tuples of the form (check node index, edge weight)
-    messages::Vector{gaussian}
+    messages::Vector{gaussian_log_weight}
     pos_in_check_neighbour::Vector{Int64} # Position in the neighbours array of the neighbouring check node objects
 end
 
@@ -86,7 +86,7 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
                 push!(pos_in_var_neighbour, 1)
             end
         end
-        tg.check_nodes[i] = CheckNode(collect(zip(stab.nzind, stab.nzval)), [gaussian(0.0, 1.0) for k = 1:length(stab.nzind)], pos_in_var_neighbour)
+        tg.check_nodes[i] = CheckNode(collect(zip(stab.nzind, stab.nzval)), [gaussian_log_weight(0.0, 1.0) for k = 1:length(stab.nzind)], pos_in_var_neighbour)
     end
 
     # order node_to_stab by key value
@@ -94,7 +94,7 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
 
     counter::Int64 = 1
     for (node, neighbours) in node_to_stab
-        tg.var_nodes[counter] = VariableNode(gaussian(0.0, 1.0), node, neighbours, [gaussian(0.0, 1.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
+        tg.var_nodes[counter] = VariableNode(gaussian_log_weight(0.0, 1.0), node, neighbours, [gaussian_log_weight(0.0, 1.0, 0.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
         tg.var_node_to_posit[node] = counter
         counter += 1
     end
