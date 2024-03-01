@@ -1,6 +1,7 @@
 using Random
 using Logging
 using LinearAlgebra
+using NPZ
 
 """
     init_p_mat(d::Int, n::Int)
@@ -147,3 +148,8 @@ function classical_ldlc(d::Int, n::Int, normalize::Bool=false)
     return classical_ldlc(d, n, h, normalize)
 end
 
+
+function load_ldlc(d, n)
+    code = npzread("/Users/timo/Documents/GitHub/LatticeDecoder.jl/data/generator_matrices/ldlc/d_$(d)_n_$(n).npz")
+    return code
+end

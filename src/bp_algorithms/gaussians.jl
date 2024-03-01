@@ -323,8 +323,8 @@ function divide(g1::gaussian, g2::gaussian)
     c1 = g1.weight
     c2 = g2.weight
 
-    Δ = 1 / (1 / Δ1 - 1 / Δ2)
-    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = max(Δ1 * Δ2 / (Δ2 - Δ1), MIN_VAR)
+    m = (m1 * Δ2 - m2 * Δ1) / (Δ2 - Δ1)
     β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
     return gaussian(m, Δ, β)
 end
@@ -352,8 +352,8 @@ function divide!(g1::gaussian, g2::gaussian)
     c1 = g1.weight
     c2 = g2.weight
 
-    Δ = 1 / (1 / Δ1 - 1 / Δ2)
-    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = max(Δ1 * Δ2 / (Δ2 - Δ1), MIN_VAR)
+    m = (m1 * Δ2 - m2 * Δ1) / (Δ2 - Δ1)
     β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
 
     g1.mean = m
@@ -384,8 +384,8 @@ function divide!(g_out::gaussian, g1::gaussian, g2::gaussian)
     c1 = g1.weight
     c2 = g2.weight
 
-    Δ = 1 / (1 / Δ1 - 1 / Δ2)
-    m = Δ * (m1 / Δ1 - m2 / Δ2)
+    Δ = max(Δ1 * Δ2 / (Δ2 - Δ1), MIN_VAR)
+    m = (m1 * Δ2 - m2 * Δ1) / (Δ2 - Δ1)
     β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
 
     g_out.mean = m

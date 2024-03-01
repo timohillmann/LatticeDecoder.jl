@@ -40,9 +40,10 @@ mutable struct TannerGraph
     nv::Int64
     nc::Int64
     bp_result::Vector{Float64}
+    schedule::Vector{Int64}
 
     function TannerGraph(var_nodes::Vector{VariableNode}, check_nodes::Vector{CheckNode}, var_node_to_posit::Dict{Int64,Int64})
-        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)))
+        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), collect(1:length(var_nodes)))
     end
 
 end
@@ -95,7 +96,7 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
 
     counter::Int64 = 1
     for (node, neighbours) in node_to_stab
-        tg.var_nodes[counter] = VariableNode(gaussian(0.0, 1.0), node, neighbours, [gaussian(0.0, 1.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
+        tg.var_nodes[counter] = VariableNode(gaussian(0.0, 1.0), node, neighbours, [gaussian(0.0, 1.0, 1.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
         tg.var_node_to_posit[node] = counter
         counter += 1
     end
