@@ -27,7 +27,8 @@ println("Number of symbol errors: ", count_symbol_errors(dec))
     println("Running experiment with σ = ", σ, " with $(nworkers()) workers ")
     errors = @distributed (+) for i = 1:samples
         y = sample_error(σ, size(H, 2))
-        bp_result = run_belief_propagation!(tg, y, σ, max_iter)
+        bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter)
+        # bp_result = run_belief_propagation!(tg, y, σ, max_iter)
         dec = hard_decision(bp_result, H)
         count_symbol_errors(dec)
     end
@@ -44,17 +45,17 @@ println("Number of symbol errors: ", count_symbol_errors(dec))
 end
 
 
-
 using Plots
 samples = 5000;
-max_iter = 25;
+max_iter = 10;
 σ = lattice_capacity_std()
 p = plot()
 sigmas = range(σ, 0.85 * σ, 4)
 
 d = 5
 for n in [100, 1000]
-    H = classical_ldlc(d, n, true)
+    # H = classical_ldlc(d, n, true)
+    H = load_ldlc(d, n)
     ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
     plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,
         marker=:circle, markersize=5, legend=:topleft, grid=true)
@@ -63,3 +64,4 @@ end
 plot!(p, yscale=:log10)
 # display plot
 display(p)
+
