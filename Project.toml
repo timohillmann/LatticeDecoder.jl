@@ -2,3 +2,6 @@ name = "LatticeDecoder"
 uuid = "0e212fe5-0191-42a4-a4df-cda88f5f21dc"
 authors = ["Timo <41513434+timohillmann@users.noreply.github.com>"]
 version = "0.1.0"
+
+[deps]
+NormalForms = "109d20d8-9763-411c-9b60-7eb2a068657f"
