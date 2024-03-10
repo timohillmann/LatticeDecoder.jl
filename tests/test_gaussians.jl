@@ -1,6 +1,5 @@
 using Test
-include("../src/bp_algorithms/gaussians.jl")
-
+using LatticeDecoder: gaussian, MIN_VAR
 
 
 function test_gaussian_assignment()
@@ -62,5 +61,4 @@ function test_gaussian_divide()
         @test g13 ≈ g3
     end
 end
-
 
