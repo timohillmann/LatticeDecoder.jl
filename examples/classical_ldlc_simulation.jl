@@ -13,13 +13,47 @@ tg = initialize_tanner_graph(H);
 
 σ = 0.15;
 
-y = sample_error(σ, n);
+b = zeros(Int64, size(H, 1));
+b[1] = 1;
+b[2] = 1;
+
+G = generator_matrix(H);
+y = encode(b, G);
+
+y .+= sample_error(σ, n);
 
 bp_result = run_belief_propagation!(tg, y, σ, 100);
 dec = hard_decision(bp_result, H);
 
-println("Number of symbol errors: ", count_symbol_errors(dec))
+println("Number of symbol errors: ", count_symbol_errors(dec, b))
 
+function random_bitstring(n)
+    return rand(0:1, n)
+end
+
+@everywhere function random_bitstring!(b::Vector{Int64}, n)
+    @inbounds for i = 1:n
+        b[i] = rand(0:1)
+    end
+end
+
+
+@everywhere function random_encoding_experiment(H, σ, max_iter, samples)
+    errors = 0
+    n = size(H, 1)
+    b = zeros(Int64, n)
+    G = generator_matrix(H)
+    tg = initialize_tanner_graph(H)
+    errors = @distributed (+) for i = 1:samples
+        random_bitstring!(b, n)
+        y = encode(b, G)
+        y .+= sample_error(σ, n)
+        bp_result = run_belief_propagation!(tg, y, σ, max_iter)
+        dec = hard_decision(bp_result, H)
+        count_symbol_errors(dec, b)
+    end
+    return errors / samples / size(H, 1)
+end
 
 
 @everywhere function ec_experiment(H, σ, max_iter, samples)
@@ -44,20 +78,40 @@ println("Number of symbol errors: ", count_symbol_errors(dec))
 end
 
 
+"""
+    agresti_coull_confidence_interval(p, n, z=1.96)
+
+Compute the Agresti-Coull confidence interval for a binomial distribution.
+The default value of z is for a 95% confidence interval.
+To get the 99% confidence interval, use z=2.576.
+To get the 99.9% confidence interval, use z=3.291.
+At z = 
+
+"""
+function agresti_coull_confidence_interval(p, n, z=1.96)
+    p̂ = p
+    n̂ = n
+    z = z
+    p̂_ = (n̂ * p̂ + z^2 / 2) / (n̂ + z^2)
+    n̂_ = n̂ + z^2
+    return z * sqrt(p̂_ * (1 - p̂_) / n̂_)
+end
 
 using Plots
-samples = 5000;
+samples = 500;
 max_iter = 25;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.85 * σ, 4)
+sigmas = range(σ, 0.85 * σ, 11)
 
 d = 5
 for n in [100, 1000]
     H = classical_ldlc(d, n, true)
-    ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
+    # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
+    ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
+    ribbon = agresti_coull_confidence_interval.(ber, samples * n)
     plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,
-        marker=:circle, markersize=5, legend=:topleft, grid=true)
+        marker=:circle, markersize=5, legend=:lowerleft, grid=true, ribbon=ribbon)
 end
 # set x and y axis in log scale
 plot!(p, yscale=:log10)

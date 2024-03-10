@@ -16,7 +16,7 @@ mutable struct gaussian <: Gaussian
     weight::Float64
     period::Float64
     gaussian(mean, var, weight, period) =
-        new(mean, max(var, MIN_VAR), weight, period)  # TODO: Is the abs necessary?
+        new(mean, max(var, MIN_VAR), weight, period)
 end
 
 gaussian(mean::Float64, var::Float64, weight::Float64) =
@@ -27,6 +27,18 @@ gaussian(mean::Float64, var::Float64) = gaussian(mean, var, 1.0, 0.0)
 Base.zero(gaussian) = 0.0
 
 Base.copy(g::gaussian) = gaussian(g.mean, g.var, g.weight, g.period)
+
+function Base.isapprox(g1::gaussian, g2::gaussian)
+    flag = true
+    if !(g1.mean ≈ g2.mean)
+        flag = false
+    elseif !(g1.var ≈ g2.var)
+        flag = false
+    elseif !(g1.weight ≈ g2.weight)
+        flag = false
+    end
+    return flag
+end
 
 struct TwoGaussianAlloc
     gL::gaussian
@@ -41,40 +53,8 @@ mutable struct FourGaussianAlloc
 end
 
 
-
-
-# Alloc = GaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5))
-
-
 """
-    prod!(g1::gaussian, g2::gaussian)
-
-Update the Gaussian distribution `g1` to be the product of `g1` and `g2`. The
-resulting distribution will have mean and variance given by:
-
-    m = Δ * (m1 / Δ1 + m2 / Δ2)
-    Δ = 1 / (1 / Δ1 + 1 / Δ2)
-
-where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
-respectively. The resulting weight `c` is also computed and assigned to `g1`.
-"""
-function Base.prod!(g1::gaussian, g2::gaussian)
-    m1 = g1.mean
-    m2 = g2.mean
-    Δ1 = g1.var
-    Δ2 = g2.var
-
-    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
-    m = Δ * (m1 / Δ1 + m2 / Δ2)
-    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
-
-    g1.mean = m
-    g1.var = Δ
-    g1.weight = c * g1.weight * g2.weight
-end
-
-"""
-    nearest(g::gaussian, y::Float64, e::Float64=10.0)
+    nearest(g::gaussian, y::Float64, h::Float64, e::Float64=1.0)
 
 Compute the two nearest Gaussian distributions `gL` and `gR` to a given
 value `y`, based on a reference distribution `g`. An optional arugment `e`
@@ -110,9 +90,11 @@ end
 function nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Float64=1.0)
     h = g.period
     m = g.mean
-    rhs = -(m - y) * h
+    rhs = (m - y) * h
     b1 = floor(rhs)
     b2 = b1 + 1
+
+    @assert g.weight > 0.0
 
     left_mean = m - (b1 / h)
     right_mean = m - (b2 / h)
@@ -131,36 +113,12 @@ function nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Float6
     elseif ((y - e) < right_mean < (y + e)) && !((y - e) < left_mean < (y + e))
         g1.mean = right_mean
     end
+
+    if left_mean > right_mean
+        g1.mean, g2.mean = g2.mean, g1.mean
+    end
+
 end
-
-# function nearest_allocationless(g::gaussian, y::Float64, h::Float64, Alloc::GaussianAlloc, e::Float64=1.0)
-#     m = g.mean
-#     rhs = -(m - y) * h
-#     b1 = floor(rhs)
-#     b2 = b1 + 1
-
-#     # The left and right Gaussian N_{L,i}, N_{R,i} in Liu eq 19
-#     gL = Alloc.gL
-#     gR = Alloc.gR
-
-#     gL.mean = m - (b1 / h)
-#     gR.mean = m - (b2 / h)
-#     gL.var = g.var
-#     gR.var = g.var
-#     gL.weight = g.weight
-#     gR.weight = g.weight
-
-#     # gL and gR are preprocessed as in Liu, eqs. 22-24 
-#     if ((y - e) < gL.mean < (y + e)) && !((y - e) < gR.mean < (y + e))
-#         gR = gL
-#     elseif ((y - e) < gR.mean < (y + e)) && !((y - e) < gL.mean < (y + e))
-#         gL = gR
-#     end
-#     return (gL, gR)
-# end
-
-# nearest_allocationless(g::gaussian, y::Float64, h::Float64, e::Float64=1.0) = nearest_allocationless(g, y, h, Alloc, e)
-
 
 """
     sum(g1::gaussian, g2::gaussian)
@@ -267,7 +225,7 @@ function Base.prod(g1::gaussian, g2::gaussian)
     Δ = 1 / (1 / Δ1 + 1 / Δ2)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
     c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
-    return gaussian(m, Δ, c)
+    return gaussian(m, Δ, c * g1.weight * g2.weight)
 end
 
 """
@@ -289,13 +247,18 @@ function Base.prod!(g1::gaussian, g2::gaussian)
     Δ1 = g1.var
     Δ2 = g2.var
 
+    @assert g1.weight > 0.0
+    @assert g2.weight > 0.0
+
     Δ = 1 / (1 / Δ1 + 1 / Δ2)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
-    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+    # c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+    log_c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
 
     g1.mean = m
     g1.var = Δ
-    g1.weight = c * g1.weight * g2.weight
+    g1.weight = exp(log_c) * g1.weight * g2.weight
+    @assert g1.weight > 0.0
 end
 
 
@@ -323,10 +286,16 @@ function divide(g1::gaussian, g2::gaussian)
     c1 = g1.weight
     c2 = g2.weight
 
+    @assert Δ2 > Δ1
+
     Δ = 1 / (1 / Δ1 - 1 / Δ2)
     m = Δ * (m1 / Δ1 - m2 / Δ2)
-    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
-    return gaussian(m, Δ, β)
+    # β = (sqrt(2 * pi * (Δ2 - Δ1))) * exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+    log_β = (m1 - m2)^2 / (2 * (Δ2 - Δ1)) + 0.5 * log(2 * pi) + log(Δ2) - 0.5 * log(Δ2 - Δ1) + log(c1) - log(c2)
+
+    #println(log_β)
+
+    return gaussian(m, Δ, exp(log_β))
 end
 
 
@@ -354,11 +323,11 @@ function divide!(g1::gaussian, g2::gaussian)
 
     Δ = 1 / (1 / Δ1 - 1 / Δ2)
     m = Δ * (m1 / Δ1 - m2 / Δ2)
-    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
-
+    # β = (sqrt(2 * pi * (Δ2 - Δ1))) * exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+    log_β = (m1 - m2)^2 / (2 * (Δ2 - Δ1)) + 0.5 * log(2 * pi) + log(Δ2) - 0.5 * log(Δ2 - Δ1) + log(c1) - log(c2)
     g1.mean = m
     g1.var = Δ
-    g1.weight = β
+    g1.weight = exp(log_β)
 end
 
 
@@ -386,9 +355,49 @@ function divide!(g_out::gaussian, g1::gaussian, g2::gaussian)
 
     Δ = 1 / (1 / Δ1 - 1 / Δ2)
     m = Δ * (m1 / Δ1 - m2 / Δ2)
-    β = (sqrt(2 * pi * (Δ2 - Δ1))) / exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+    #β = (sqrt(2 * pi * (Δ2 - Δ1))) * exp(-(m1 - m2)^2 / (2 * (Δ2 - Δ1))) * (Δ2 / (Δ2 - Δ1)) * c1 / c2
+    log_β = (m1 - m2)^2 / (2 * (Δ2 - Δ1)) + 0.5 * log(2 * pi) + log(Δ2) - 0.5 * log(Δ2 - Δ1) + log(c1) - log(c2)
 
     g_out.mean = m
     g_out.var = Δ
-    g_out.weight = β
+    g_out.weight = exp(log_β)
 end
+
+
+# g1 = gaussian(0.1, 0.1, 0.1)
+# g2 = gaussian(-0.2, 0.2, 0.2)
+# g3 = gaussian(-0.3, 0.3, 0.3)
+
+# g12 = prod(g1, g2)
+# g23 = prod(g2, g3)
+# g13 = prod(g1, g3)
+
+# divide(g12, g1)
+# g = gaussian(0.0, 0.5, 0.5)
+
+# isapprox(divide(g12, g1), g2)
+# isapprox(divide(g12, g2), g1)
+# isapprox(divide(g23, g2), g3)
+# isapprox(divide(g23, g3), g2)
+# isapprox(divide(g13, g1), g3)
+# isapprox(divide(g13, g3), g1)
+
+
+# divide!(g, g12, g1)
+# @assert g2 ≈ g
+
+# divide!(g, g12, g2)
+# @assert g1 ≈ g
+
+# divide!(g, g23, g2)
+# @assert g3 ≈ g
+
+# divide!(g, g23, g3)
+# @assert g2 ≈ g
+
+# divide!(g, g13, g3)
+# @assert g1 ≈ g
+
+# divide!(g, g13, g1)
+# @assert g3 ≈ g
+

@@ -95,7 +95,7 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
 
     counter::Int64 = 1
     for (node, neighbours) in node_to_stab
-        tg.var_nodes[counter] = VariableNode(gaussian(0.0, 1.0), node, neighbours, [gaussian(0.0, 1.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
+        tg.var_nodes[counter] = VariableNode(gaussian(0.0, 1.0), node, neighbours, [gaussian(0.0, 1.0, 1.0, neighbours[k][2]) for k = 1:length(neighbours)], Int64[])
         tg.var_node_to_posit[node] = counter
         counter += 1
     end
