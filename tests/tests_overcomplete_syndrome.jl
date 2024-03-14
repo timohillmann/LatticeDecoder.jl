@@ -37,8 +37,8 @@ end
 
 
 function compute_eta(M_r::AbstractMatrix{Float64}, J::AbstractMatrix{Float64}, Vt::AbstractMatrix, s::AbstractVector, z::AbstractVector)
-    return inv(M_r*J) * Vt * (s + z)
-end 
+    return inv(M_r * J) * Vt * (s + z)
+end
 
 d = 3
 M = gkp_rep_code(d)
@@ -51,13 +51,15 @@ z = integer_solve(V, s)
 
 η = compute_eta(Mr, J, Vt, s, z)
 
-M * J * (e - η) 
+M * J * (e - η)
 
 
 function test_overcomplete_syndrome()
 
     n_errors = 100
-    d = 5 
+    d = 5
     M = gkp_rep_code(d)
     J = symplectic_form(d)
     Mr, Vt, V = overcomplete_syndrome_preperation(M)
+
+end
