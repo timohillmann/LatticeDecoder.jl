@@ -46,22 +46,25 @@ end
 
 
 using Plots
-samples = 5000;
+samples = 1000;
 max_iter = 10;
 σ = lattice_capacity_std()
 p = plot()
 sigmas = range(σ, 0.85 * σ, 4)
 
 d = 5
-for n in [100, 1000]
-    # H = classical_ldlc(d, n, true)
-    H = load_ldlc(d, n)
-    ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
-    plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,
-        marker=:circle, markersize=5, legend=:topleft, grid=true)
+for n in [100,1000]
+    ber = zeros(length(sigmas))
+    for _ in 1:10
+        # H = classical_ldlc(d, n, true)
+        # H = load_ldlc(d, n)
+        H = classical_ldlc(d, n, true)
+        ber = ber + Vector([ec_experiment(H, σ, max_iter, samples) for σ in sigmas])
+    end
+    plot!(p, snr_db.(sigmas), ber ./10, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=1,
+        marker=:circle, markersize=5, grid=true,color=:blue)
+    # set x and y axis in log scale
+    plot!(p, yscale=:log10)
+    # display plot
 end
-# set x and y axis in log scale
-plot!(p, yscale=:log10)
-# display plot
 display(p)
-
