@@ -114,7 +114,7 @@ end
 
 initialize_tanner_graph(H::Matrix) = initialize_tanner_graph(sparse(H))
 
-
+initialize_tanner_graph(code::QuantumCode) = initialize_tanner_graph(code.code)
 
 # H = Float64[1.01 1.02 0; 0 1.11 1.12; 1.31 0 1.32]; # 3x2 matrix
 # H = sparse(H)

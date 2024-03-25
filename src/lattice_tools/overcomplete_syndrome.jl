@@ -64,7 +64,7 @@ integer_solve(V::BottomSystem, s::Vector) = interger_solve(V.VbH, -V.Vb * s)
 
 Computes the syndrome of a given error using the symplectic form J.
 """
-function compute_syndrome(M::AbstractMatrix, J::SymplecticForm, error::Vector{Float64})
+function compute_syndrome(M::AbstractMatrix, J::AbstractMatrix, error::Vector{Float64})
     return M * J * error .% 1
 end
 
@@ -85,41 +85,41 @@ function compute_eta()
 end
 
 
-rep_code = Int64[1 1 0; 0 1 1]
-Id = Matrix{Int64}(2I, 3, 3)
-M = Matrix([rep_code' Id']') / sqrt(2)
+# rep_code = Int64[1 1 0; 0 1 1]
+# Id = Matrix{Int64}(2I, 3, 3)
+# M = Matrix([rep_code' Id']') / sqrt(2)
 
 
-n = minimum(size(M))
-Mr, V = overcomplete_syndrome_preperation(M)
+# n = minimum(size(M))
+# Mr, V = overcomplete_syndrome_preperation(M)
 
-error = randn(n)
-s = M * error .% 1
+# error = randn(n)
+# s = M * error .% 1
 
-integer_solve(V, s)
-
-
-d = 3
-
-H = zeros(Float64, d - 1, d)
-for i in 1:(d-1)
-    H[i, i] = 1
-    H[i, i+1] = 1
-
-end
-
-H
-
-bit_flip = false
-
-if bit_flip
-    M_H = [H / sqrt(2) zeros(Float64, d - 1, d)]
-else
-    M_H = [zeros(Float64, d - 1, d) H / sqrt(2)]
-end
+# integer_solve(V, s)
 
 
-M_H
-GKP_generators = Matrix{Float64}(2 * I, 2 * d, 2 * d)
+# d = 3
 
-M = [M_H; GKP_generators]
+# H = zeros(Float64, d - 1, d)
+# for i in 1:(d-1)
+#     H[i, i] = 1
+#     H[i, i+1] = 1
+
+# end
+
+# H
+
+# bit_flip = false
+
+# if bit_flip
+#     M_H = [H / sqrt(2) zeros(Float64, d - 1, d)]
+# else
+#     M_H = [zeros(Float64, d - 1, d) H / sqrt(2)]
+# end
+
+
+# M_H
+# GKP_generators = Matrix{Float64}(2 * I, 2 * d, 2 * d)
+
+# M = [M_H; GKP_generators]

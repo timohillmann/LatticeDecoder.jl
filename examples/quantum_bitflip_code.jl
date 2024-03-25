@@ -12,7 +12,7 @@ code = GKP_Rep_Code(1)
 # Initialize Tanner graph
 
 tg = initialize_tanner_graph(code);
-
+H = code.code;
 σ = 0.15;
 
 b = zeros(Int64, size(H, 1));
