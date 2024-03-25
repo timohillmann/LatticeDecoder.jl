@@ -10,7 +10,7 @@ export classical_ldlc, generator_matrix, encode, decode, encode!, decode!
 include("code_constructors/classical_ldlc.jl")
 
 # Code code_constructors
-export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error
+export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code
 include("code_constructors/rep_codes.jl")
 
 # Utilities
