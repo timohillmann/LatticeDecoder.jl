@@ -258,7 +258,7 @@ function Base.prod!(g1::gaussian, g2::gaussian)
     g1.mean = m
     g1.var = Δ
     g1.weight = exp(log_c) * g1.weight * g2.weight
-    @assert g1.weight > 0.0
+    @assert g1.weight > 0.0 "$(m1), $(m2)"
 end
 
 

@@ -7,24 +7,21 @@ using LinearAlgebra
 # include("../src/code_constructors/rep_codes.jl")
 
 # initialize code
-code = GKP_Rep_Code(1)
+n = 3
+code = GKP_Rep_Code(n)
+
+H = code.code
+H = H[4:end, 4:end]
 
 # Initialize Tanner graph
 
-tg = initialize_tanner_graph(code);
-H = code.code;
+tg = initialize_tanner_graph(H);
+# H = code.code;
 σ = 0.15;
 
-b = zeros(Int64, size(H, 1));
-b[1] = 1;
-b[2] = 1;
+y = sample_error(σ, 2 * n);
 
-G = generator_matrix(H);
-y = encode(b, G);
-
-y .+= sample_error(σ, n);
-
-bp_result = run_belief_propagation!(tg, y, σ, 100);
+bp_result = run_belief_propagation!(tg, y, σ, 1);
 dec = hard_decision(bp_result, H);
 
 

@@ -62,7 +62,7 @@ function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
         idx = check_node.pos_in_var_neighbour[i]
         vn = tg.var_nodes[vn_idx]
         vn.messages[idx].mean = -(mean_sum - check_node.messages[i].mean * edge_weight) / edge_weight
-        vn.messages[idx].var = (var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2
+        vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, LatticeDecoder.MIN_VAR)
         vn.messages[idx].period = edge_weight
     end
 end
