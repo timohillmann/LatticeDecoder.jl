@@ -16,6 +16,7 @@ include("code_constructors/classical_ldlc.jl")
 export sample_error, hard_decision, count_symbol_errors, lattice_capacity_var, lattice_capacity_std, snr, snr_db, symplectic_form
 include("utilities/utilities.jl")
 
-export overcomplete_syndrome_preperation, integer_solve
+export overcomplete_syndrome_preperation, integer_solve, compute_syndrome, compute_eta, compute_eta_overcomplete
 include("lattice_tools/overcomplete_syndrome.jl")
+
 end # module LatticeDecoder

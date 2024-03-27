@@ -60,7 +60,7 @@ integer_solve(V::BottomSystem, s::Vector) = interger_solve(V.VbH, -V.Vb * s)
 
 
 """
-    compute_syndrome(M::AbstractMatrix, J::SymplecticForm, error::Vector{Float64})
+    compute_syndrome(M::AbstractMatrix, J::AbstractMatrix, error::Vector{Float64})
 
 Computes the syndrome of a given error using the symplectic form J.
 """
@@ -69,19 +69,13 @@ function compute_syndrome(M::AbstractMatrix, J::AbstractMatrix, error::Vector{Fl
 end
 
 
-"""
-    compute_syndrome(M::AbstractMatrix, error::Vector{Float64})
-
-Computes the syndrome of a given error using the standard symplectic form.
-"""
-function compute_syndrome(M::AbstractMatrix, error::Vector{Float64})
-    return M * error .% 1
-
+function compute_eta(M::AbstractMatrix, syndrome::Vector{Float64})
+    return inv(M * symplectic_form(size(M)[2])) * syndrome
 end
 
 
-function compute_eta()
-    return M * J * error
+function compute_eta_overcomplete(Mhr::AbstractMatrix, Vt::AbstractMatrix, syndrome::Vector{Float64}, integer_solution::AbstractVector)
+    return inv(Mhr * symplectic_form(Int64(size(Mhr)[1]/2))) * Vt* (syndrome + integer_solution)
 end
 
 
@@ -91,7 +85,7 @@ end
 
 
 # n = minimum(size(M))
-# Mr, V = overcomplete_syndrome_preperation(M)
+# Mh, Mr, V = overcomplete_syndrome_preperation(M)
 
 # error = randn(n)
 # s = M * error .% 1

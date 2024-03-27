@@ -9,7 +9,7 @@ end
 
 function is_logical_error(code::QuantumCode, error::Vector{Float64})
     # check if symplectic product is integer
-    return all(code.logical * code.J * error .% 1 .== 0)
+    return any(code.logical * code.J * error .% 1 .!= 0)
 end
 
 
@@ -38,9 +38,9 @@ function rep_code_logical(d::Int, bit_flip=false)
     L = zeros(Float64, 1, 2 * d)
 
     if bit_flip
-        L[1, (d+1):end] .= 1
-    else
         L[1, 1:d] .= 1
+    else
+        L[1, (d+1):end] .= 1
     end
 
     return L / sqrt(2)
