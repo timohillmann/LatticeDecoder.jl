@@ -1,9 +1,6 @@
 include("tanner_graph_log_weight.jl")
-include("gaussians_log_weight.jl")
 
-const MIN_VAR::Float64 = 1e-3
-
-VarNodeAlloc = FourGaussianAlloc(gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5))
+VarNodeAlloc = FourGaussianLogAlloc(gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5))
 
 """
     initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Float64)
@@ -65,7 +62,7 @@ function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
         idx = check_node.pos_in_var_neighbour[i]
         vn = tg.var_nodes[vn_idx]
         vn.messages[idx].mean = -(mean_sum - check_node.messages[i].mean * edge_weight) / edge_weight
-        vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, MIN_VAR)
+        vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, LatticeDecoder.MIN_VAR)
         vn.messages[idx].period = edge_weight
 
         if isnan(vn.messages[idx].var)
@@ -126,7 +123,7 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
     end
 end
 
-function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
     var_node = tg.var_nodes[vn_idx]
 
     # multiply together all the messages from the neighbouring check nodes
@@ -196,7 +193,7 @@ function variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn
 end
 
 
-function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
     Alloc.gL.mean = vn.message.mean
@@ -217,7 +214,7 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
     bp_result[vn_idx] = vn.message.mean
 end
 
-function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
     Alloc.gL.mean = vn.message.mean
@@ -238,7 +235,7 @@ function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::Fo
 end
 
 
-function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianAlloc)
+function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
     variable_node_mother_message!(tg, vn_idx, Alloc)
@@ -274,7 +271,7 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64)
+function run_belief_propagation_log_weights!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64)
     # initilization
     initialize_messages!(tg, message, σ)
 

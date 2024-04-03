@@ -24,7 +24,15 @@ gaussian_log_weight(mean::Float64, var::Float64) = gaussian_log_weight(mean, var
 
 Base.zero(gaussian_log_weight) = 0.0
 
-mutable struct FourGaussianAlloc
+Base.copy(g::gaussian_log_weight) = gaussian_log_weight(g.mean, g.var, g.log_weight, g.period)
+
+function Base.isapprox(g1::gaussian_log_weight, g2::gaussian_log_weight; atol=1e-6, rtol=1e-6)
+    return isapprox(g1.mean, g2.mean, atol=atol, rtol=rtol) &&
+           isapprox(g1.var, g2.var, atol=atol, rtol=rtol) &&
+           isapprox(g1.log_weight, g2.log_weight, atol=atol, rtol=rtol)
+end
+
+mutable struct FourGaussianLogAlloc
     gL::gaussian_log_weight
     gR::gaussian_log_weight
     g1::gaussian_log_weight
@@ -145,10 +153,11 @@ end
 function nearest!(g1::gaussian_log_weight, g2::gaussian_log_weight, g::gaussian_log_weight, y::Float64, e::Float64=1.0)
     h = g.period
     m = g.mean
-    rhs = -(m - y) * h
+    rhs = (m - y) * h
     b1 = floor(rhs)
     b2 = b1 + 1
 
+    @assert g.weight > 0.0
 
     left_mean = m - (b1 / h)
     right_mean = m - (b2 / h)
@@ -168,7 +177,9 @@ function nearest!(g1::gaussian_log_weight, g2::gaussian_log_weight, g::gaussian_
         g1.mean = right_mean
     end
 
-    @assert g.var >= MIN_VAR
+    if left_mean > right_mean
+        g1.mean, g2.mean = g2.mean, g1.mean
+    end
 
 end
 
@@ -198,14 +209,7 @@ function Base.sum!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaus
     Then, exp(c_i) cancels out to obtain the expression we use below
     """
     w1 = 1 / (1 + exp(g2.log_weight - g1.log_weight))
-    # if isnan(w1)
-    #     println(g1.log_weight, " ", g2.log_weight)
-    #     println("Spotted w1 as NaN")
-    # end
     w2 = 1 / (1 + exp(g1.log_weight - g2.log_weight))
-    # if isnan(w2)
-    #     println("Spotted w2 as NaN")
-    # end
     m = m1 * w1 + m2 * w2
     Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
 
@@ -347,10 +351,3 @@ function divide!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussi
     g_out.log_weight = log_β
     return nothing
 end
-
-
-function foo(foo)
-    return foo(0.5, 0.1)
-end
-
-foo(gaussian_log_weight)
