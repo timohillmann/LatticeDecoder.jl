@@ -85,3 +85,4 @@ Return the signal-to-noise ratio (SNR) in decibels for a given standard deviatio
 function snr_db(σ::Float64)
     return 10 * log10(snr(σ))
 end
+
