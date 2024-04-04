@@ -98,11 +98,11 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
 end
 
 using Plots
-samples = 500;
-max_iter = 25;
+samples = 5000;
+max_iter = 30;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.85 * σ, 11)
+sigmas = range(σ, 0.8 * σ, 11)
 
 d = 5
 for n in [100, 1000]
@@ -110,8 +110,9 @@ for n in [100, 1000]
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
     ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
     ribbon = agresti_coull_confidence_interval.(ber, samples * n)
+    println(ber)
     plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,
-        marker=:circle, markersize=5, legend=:lowerleft, grid=true, ribbon=ribbon)
+        marker=:circle, markersize=5, grid=true, ribbon=ribbon)
 end
 # set x and y axis in log scale
 plot!(p, yscale=:log10)
