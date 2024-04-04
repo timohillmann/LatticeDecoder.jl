@@ -113,3 +113,4 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
 end
 
 initialize_tanner_graph(H::Matrix) = initialize_tanner_graph(sparse(H))
+initialize_tanner_graph(H::QuantumCode) = initialize_tanner_graph(H.code)

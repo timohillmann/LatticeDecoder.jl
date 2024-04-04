@@ -18,7 +18,9 @@ if true
 
     # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
     # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
+
     # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
 end
 
@@ -62,7 +64,8 @@ end
     correction = η - G*dec
 
     residual = y - correction
-    commutator = ((y - correction )' * J * logical)
+    # println("residual: ",residual)
+    commutator = (residual' * J * logical)
     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
 
     # residual = (y - correction)
@@ -72,32 +75,32 @@ end
     if success_condition
     # if !is_logical_error(code, residual)
         return 1
-    else
-        current_best = norm(correction)
-        for j in 1:length(correction)
-            for k in [-2,-1,1,2]
-                new_dec = dec[:]
-                new_dec[j]= new_dec[j]+k
-                new_candidate =  η - G*new_dec
-                new_norm = norm(new_candidate)
-                if new_norm<current_best
-                    # println("found new best")
-                    current_best = new_norm
-                    correction = new_candidate
-                end
-            end
-        end
-        # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
-        commutator = ((y - correction )' * J * logical)
-        success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-        # residual = y - correction
-        if success_condition
-        # if !is_logical_error(code, residual)
-            return 1
-        else
-            return 0
-        end
+    # else
+    #     current_best = norm(correction)
+    #     for j in 1:length(correction)
+    #         for k in [-2,-1,1,2]
+    #             new_dec = dec[:]
+    #             new_dec[j]= new_dec[j]+k
+    #             new_candidate =  η - G*new_dec
+    #             new_norm = norm(new_candidate)
+    #             if new_norm<current_best
+    #                 # println("found new best")
+    #                 current_best = new_norm
+    #                 correction = new_candidate
+    #             end
+    #         end
+    #     end
+    #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
+    #     commutator = ((y - correction )' * J * logical)
+    #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
+    #     # residual = y - correction
+    #     if success_condition
+    #     # if !is_logical_error(code, residual)
+    #         return 1
+    #     end
     end
+
+    return 0
 end
 
 
@@ -106,10 +109,10 @@ end
 # th_pl = plot(yscale=:log10)
 th_pl = plot()
 
-samples = 1_000
+samples = 10_000
 
 for n in [3,5,7]
-
+# for n in [3]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -127,8 +130,10 @@ for n in [3,5,7]
 
     G = inv(J*Mh')'
     decision_H = inv(G)
+    
     sigmas = collect(0.37:0.01:0.45)
-    # sigmas = [0.1]
+    # sigmas = [0.35]
+    
     success_rates = Vector{Float64}(undef, length(sigmas))
 
     for l in 1:length(sigmas)
