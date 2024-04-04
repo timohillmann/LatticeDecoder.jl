@@ -39,9 +39,10 @@ mutable struct TannerGraph
     nv::Int64
     nc::Int64
     bp_result::Vector{Float64}
+    search_interval::Float64
 
     function TannerGraph(var_nodes::Vector{VariableNode}, check_nodes::Vector{CheckNode}, var_node_to_posit::Dict{Int64,Int64})
-        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)))
+        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), 1.5)
     end
 
 end
@@ -112,11 +113,3 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
 end
 
 initialize_tanner_graph(H::Matrix) = initialize_tanner_graph(sparse(H))
-
-
-
-# H = Float64[1.01 1.02 0; 0 1.11 1.12; 1.31 0 1.32]; # 3x2 matrix
-# H = sparse(H)
-# tg = initialize_tanner_graph(H)
-
-

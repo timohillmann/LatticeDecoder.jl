@@ -1,4 +1,4 @@
-const MIN_VAR::Float64 = 1e-3
+const MIN_VAR::Float64 = 1e-30
 
 abstract type Gaussian end
 
@@ -37,6 +37,21 @@ mutable struct FourGaussianLogAlloc
     gR::gaussian_log_weight
     g1::gaussian_log_weight
     g2::gaussian_log_weight
+
+    FourGaussianLogAlloc(g::gaussian_log_weight) = new(copy(g), copy(g), copy(g), copy(g))
+end
+
+
+mutable struct SixGaussianLogAlloc
+    gL::gaussian_log_weight
+    gR::gaussian_log_weight
+    g1::gaussian_log_weight
+    g2::gaussian_log_weight
+    gL_j::gaussian_log_weight
+    gR_j::gaussian_log_weight
+
+    SixGaussianLogAlloc(g::gaussian_log_weight) = new(copy(g), copy(g), copy(g), copy(g), copy(g), copy(g))
+
 end
 
 
@@ -58,12 +73,12 @@ function Base.prod!(g1::gaussian_log_weight, g2::gaussian_log_weight)
     Δ1 = g1.var
     Δ2 = g2.var
 
-    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
     c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
 
     g1.mean = m
-    g1.var = Δ
+    g1.var = max(Δ, MIN_VAR)
     g1.log_weight = c + g1.log_weight + g2.log_weight
 end
 
@@ -156,8 +171,6 @@ function nearest!(g1::gaussian_log_weight, g2::gaussian_log_weight, g::gaussian_
     rhs = (m - y) * h
     b1 = floor(rhs)
     b2 = b1 + 1
-
-    @assert g.weight > 0.0
 
     left_mean = m - (b1 / h)
     right_mean = m - (b2 / h)
@@ -325,6 +338,9 @@ function divide!(g1::gaussian_log_weight, g2::gaussian_log_weight)
     Δ1 = g1.var
     Δ2 = g2.var
 
+
+
+
     Δ = 1 / (1 / Δ1 - 1 / Δ2)
     m = Δ * (m1 / Δ1 - m2 / Δ2)
     log_β = (m1 - m2)^2 / (2 * (Δ2 - Δ1)) + 0.5 * log(2 * pi) + log(Δ2) - 0.5 * log(Δ2 - Δ1) + g1.log_weight - g2.log_weight
@@ -341,6 +357,20 @@ function divide!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussi
     m2 = g2.mean
     Δ1 = g1.var
     Δ2 = g2.var
+
+    if Δ1 < MIN_VAR || Δ2 < MIN_VAR
+        error("Variance is too small")
+    end
+
+    @assert Δ1 > 0 && Δ2 > 0
+    if (Δ2 - Δ1) < 0
+        println("Δ1: ", Δ1)
+        println("Δ2: ", Δ2)
+        println("g1: ", g1)
+        println("g2: ", g2)
+        error("Variance is negative")
+        exit()
+    end
 
     Δ = 1 / (1 / Δ1 - 1 / Δ2)
     m = Δ * (m1 / Δ1 - m2 / Δ2)

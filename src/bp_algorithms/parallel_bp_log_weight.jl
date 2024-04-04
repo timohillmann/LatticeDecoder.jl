@@ -1,6 +1,8 @@
 include("tanner_graph_log_weight.jl")
 
-VarNodeAlloc = FourGaussianLogAlloc(gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5), gaussian_log_weight(0.0, 0.5))
+VarNodeAlloc = FourGaussianLogAlloc(gaussian_log_weight(0.0, 0.5))
+
+MotherNodeAlloc = SixGaussianLogAlloc(gaussian_log_weight(0.0, 0.5))
 
 """
     initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Float64)
@@ -62,18 +64,9 @@ function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
         idx = check_node.pos_in_var_neighbour[i]
         vn = tg.var_nodes[vn_idx]
         vn.messages[idx].mean = -(mean_sum - check_node.messages[i].mean * edge_weight) / edge_weight
-        vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, LatticeDecoder.MIN_VAR)
+        vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, MIN_VAR)
         vn.messages[idx].period = edge_weight
 
-        if isnan(vn.messages[idx].var)
-            println("variance is too small")
-            println("Var sum: ", var_sum)
-            println("cn.var", check_node.messages[i].var)
-            println("weight", edge_weight)
-            println(vn.messages[idx].var)
-            println(MIN_VAR)
-            exit()
-        end
     end
 end
 
@@ -86,8 +79,8 @@ end
 function variable_node_iterations!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
         # variable_node_messages!(tg, i)
-        variable_node_messages_allocationless!(tg, i)
-        # mm_variable_node_messages!(tg, i)
+        # variable_node_messages_allocationless!(tg, i)
+        mm_variable_node_messages!(tg, i)
     end
 end
 
@@ -114,7 +107,7 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, tg.search_interval)
                 prod!(gL, g1)
                 prod!(gR, g2)
             end
@@ -141,7 +134,7 @@ function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, 
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                nearest!(Alloc.g1, Alloc.g2, var_node.messages[i], var_node.message.mean, 1.5)
+                nearest!(Alloc.g1, Alloc.g2, var_node.messages[i], var_node.message.mean, tg.search_interval)
                 prod!(Alloc.gL, Alloc.g1)
                 prod!(Alloc.gR, Alloc.g2)
 
@@ -182,7 +175,7 @@ function variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn
 
     for i = 1:length(vn.messages)
         cn_idx, edge_weight = vn.neighbours[i]
-        g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, 1.5)
+        g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, tg.search_interval)
         prod!(gL, g1)
         prod!(gR, g2)
     end
@@ -205,7 +198,7 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
 
 
     for i = 1:length(vn.messages)
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, tg.search_interval)
         prod!(Alloc.gL, Alloc.g1)
         prod!(Alloc.gR, Alloc.g2)
     end
@@ -214,7 +207,7 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
     bp_result[vn_idx] = vn.message.mean
 end
 
-function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
+function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::SixGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
     Alloc.gL.mean = vn.message.mean
@@ -227,15 +220,14 @@ function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::Fo
 
 
     for i = 1:length(vn.messages)
-        @assert vn.messages[i].var >= MIN_VAR "$(vn.messages[i].var) is too small"
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, tg.search_interval)
         prod!(Alloc.gL, Alloc.g1)
         prod!(Alloc.gR, Alloc.g2)
     end
 end
 
 
-function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
+function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::SixGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
     variable_node_mother_message!(tg, vn_idx, Alloc)
@@ -244,15 +236,15 @@ function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::FourG
         cn_idx, edge_weight = vn.neighbours[j]
         idx = vn.pos_in_check_neighbour[j]
         cn = tg.check_nodes[cn_idx]
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[j], vn.message.mean, vn.messages[j].period)
-        gL_j = divide(Alloc.gL, Alloc.g1)
-        gR_j = divide(Alloc.gR, Alloc.g2)
-        sum!(tg.check_nodes[cn_idx].messages[idx], gL_j, gR_j)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[j], vn.message.mean, tg.search_interval)
+        divide!(Alloc.gL_j, Alloc.gL, Alloc.g1)
+        divide!(Alloc.gR_j, Alloc.gR, Alloc.g2)
+        sum!(tg.check_nodes[cn_idx].messages[idx], Alloc.gL_j, Alloc.gR_j)
     end
 
 end
 
-mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64) = mm_variable_node_messages!(tg, vn_idx, VarNodeAlloc)
+mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64) = mm_variable_node_messages!(tg, vn_idx, MotherNodeAlloc)
 
 variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64) = variable_node_decision_allocationless!(bp_result, tg, vn_idx, VarNodeAlloc)
 
@@ -271,9 +263,13 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation_log_weights!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64)
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, search_interval::Float64=1.5)
+    # set the search interval
+    tg.search_interval = search_interval
+
     # initilization
     initialize_messages!(tg, message, σ)
+
 
     # basic iteration
     for i in 1:max_iter
@@ -285,9 +281,4 @@ function run_belief_propagation_log_weights!(tg::TannerGraph, message::Vector{Fl
     decision_step(tg)
 
     return tg.bp_result
-end
-
-
-function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
-    return Int64.(round.(H * bp_result))
 end
