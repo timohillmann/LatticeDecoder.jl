@@ -3,7 +3,7 @@ using LaTeXStrings
 if nprocs()<6
     addprocs(6-nprocs())
 end
-# @everywhere using LatticeDecoder
+@everywhere using LatticeDecoder
 @everywhere using LinearAlgebra
 using Plots
 # using LatticeAlgorithms
@@ -16,10 +16,10 @@ if true
 
     @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
 
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
     # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
     @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
 end
 
 # include("../src/code_constructors/rep_codes.jl")
@@ -39,7 +39,7 @@ end
 
     # println(compute_syndrome(H,symplectic_form(n),η-y))
 
-    bp_result = run_belief_propagation!(tg, η, σ, 3);
+    bp_result = run_belief_propagation!(tg, η, σ, 1);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -106,7 +106,7 @@ end
 # th_pl = plot(yscale=:log10)
 th_pl = plot()
 
-samples = 1_000
+samples = 100_000
 
 for n in [3,5,7]
 
@@ -119,6 +119,9 @@ for n in [3,5,7]
     # initialize code
     code = GKP_Rep_Code(n)
 
+    println("jere's the code \n", code)
+
+    println(size(code.J))
     logical = vec(code.logical')
     # Initialize Tanner graph
     H = code.code;

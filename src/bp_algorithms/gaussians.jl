@@ -1,5 +1,3 @@
-
-
 const MIN_VAR::Float64 = 5e-4
 
 abstract type Gaussian end
@@ -252,12 +250,14 @@ function Base.prod!(g1::gaussian, g2::gaussian)
 
     Δ = 1 / (1 / Δ1 + 1 / Δ2)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
-    # c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
-    log_c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
+    c = exp(-(m1 - m2)^2 / (2 * (Δ1 + Δ2))) / (sqrt(2 * pi * (Δ1 + Δ2)))
+    # log_c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
 
     g1.mean = m
     g1.var = Δ
-    g1.weight = exp(log_c) * g1.weight * g2.weight
+    # g1.weight = exp(log_c) * g1.weight * g2.weight
+    g1.weight = c * g1.weight * g2.weight
+
     @assert g1.weight > 0.0 "$(m1), $(m2)"
 end
 
