@@ -41,7 +41,7 @@ end
 
     # println(compute_syndrome(H,symplectic_form(n),η-y))
 
-    bp_result = run_belief_propagation!(tg, η, σ, 3);
+    bp_result = run_belief_propagation!(tg, η, σ, 30);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -106,12 +106,12 @@ end
 
 
 
-# th_pl = plot(yscale=:log10)
-th_pl = plot()
+th_pl = plot(yscale=:log10)
+# th_pl = plot()
 
-samples = 10_000
+samples = 100_000
 
-for n in [3,5,7]
+for n in [3,9,15]
 # for n in [3]
     println("doing n = $n")
     # println(n)
@@ -131,10 +131,10 @@ for n in [3,5,7]
     G = inv(J*Mh')'
     decision_H = inv(G)
     
-    sigmas = collect(0.37:0.01:0.45)
+    sigmas = collect(0.25:0.05:0.6)
     # sigmas = [0.35]
-    
-    success_rates = Vector{Float64}(undef, length(sigmas))
+
+    failure_rates = Vector{Float64}(undef, length(sigmas))
 
     for l in 1:length(sigmas)
 
@@ -150,17 +150,17 @@ for n in [3,5,7]
         end
         
 
-        sr =success/samples
-        println("σ = $σ; success rate: ", sr)
-        success_rates[l] = sr
+        fr =1-success/samples
+        println("σ = $σ; failure rate: ", fr)
+        failure_rates[l] = fr
     end
 
-    plot!(th_pl,sigmas,success_rates, label="n = $n",markershape=:xcross)
+    plot!(th_pl,sigmas,failure_rates, label="n = $n",markershape=:xcross)
 end
 
-title!("Decoder success probability")
+title!("Decoder failure probability")
 xlabel!(L"$\sigma$")
-ylabel!(L"$p_\mathrm{succ}$")
+ylabel!(L"$p_\mathrm{fail}$")
 display(th_pl)
 readline()
 

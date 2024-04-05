@@ -28,7 +28,7 @@ function gkp_rep_code(d::Int, bit_flip=false, reduced=false)
         M_H = [zeros(Float64, d - 1, d) H]
     end
     if reduced 
-        return stack_gkp_generator( matrix(Z2, M_H))
+        return Float64.(stack_gkp_generator( matrix(Z2, Int64.(round.(M_H)))))/ sqrt(2)
     else
         GKP_generators = Matrix{Float64}(2 * I, 2 * d, 2 * d)
         return [GKP_generators; M_H] / sqrt(2)

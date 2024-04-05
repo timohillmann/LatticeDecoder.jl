@@ -3,7 +3,7 @@ using LaTeXStrings
 if nprocs()<6
     addprocs(6-nprocs())
 end
-@everywhere using LatticeDecoder
+# @everywhere using LatticeDecoder
 @everywhere using LinearAlgebra
 using Plots
 # using LatticeAlgorithms
@@ -16,30 +16,50 @@ if true
 
     @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/concatenated_code_reduction.jl")
+
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
     # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
+
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
 end
 
 # include("../src/code_constructors/rep_codes.jl")
 
+@everywhere function greedy_reduction(pcm::AbstractMatrix)
+    inds = [1]
+    m, n = size(pcm)
+    for i in 2:m
+        if rank(pcm[inds, :]) < rank(pcm[[inds; i], :])
+            push!(inds, i)
+        end
+    end
 
-@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mh, Vt, bottomSys)
-    tg = initialize_tanner_graph(code);
+    return pcm[inds, :]
+end
+
+
+
+
+@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64)
+    # tg = initialize_tanner_graph(code);
+    tg = initialize_tanner_graph(H);
     
     # println("new error")
     y= sample_error(σ, 2*n);
 
-    syndrome = compute_syndrome(H,J,y);
+    M = H*J
+    syndrome = compute_syndrome(M,J,y);
     # println(syndrome)
 
-    z = integer_solve(bottomSys, syndrome)
-    η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
+    # η = compute_eta(H, syndrome)
+    η = -G * syndrome
 
     # println(compute_syndrome(H,symplectic_form(n),η-y))
 
-    bp_result = run_belief_propagation!(tg, η, σ, 1);
+    bp_result = run_belief_propagation!(tg, η, σ, 30);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -62,7 +82,8 @@ end
     correction = η - G*dec
 
     residual = y - correction
-    commutator = ((y - correction )' * J * logical)
+    # println("residual: ",residual)
+    commutator = (residual' * J * logical)
     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
 
     # residual = (y - correction)
@@ -72,44 +93,44 @@ end
     if success_condition
     # if !is_logical_error(code, residual)
         return 1
-    else
-        current_best = norm(correction)
-        for j in 1:length(correction)
-            for k in [-2,-1,1,2]
-                new_dec = dec[:]
-                new_dec[j]= new_dec[j]+k
-                new_candidate =  η - G*new_dec
-                new_norm = norm(new_candidate)
-                if new_norm<current_best
-                    # println("found new best")
-                    current_best = new_norm
-                    correction = new_candidate
-                end
-            end
-        end
-        # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
-        commutator = ((y - correction )' * J * logical)
-        success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-        # residual = y - correction
-        if success_condition
-        # if !is_logical_error(code, residual)
-            return 1
-        else
-            return 0
-        end
+    # else
+    #     current_best = norm(correction)
+    #     for j in 1:length(correction)
+    #         for k in [-2,-1,1,2]
+    #             new_dec = dec[:]
+    #             new_dec[j]= new_dec[j]+k
+    #             new_candidate =  η - G*new_dec
+    #             new_norm = norm(new_candidate)
+    #             if new_norm<current_best
+    #                 # println("found new best")
+    #                 current_best = new_norm
+    #                 correction = new_candidate
+    #             end
+    #         end
+    #     end
+    #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
+    #     commutator = ((y - correction )' * J * logical)
+    #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
+    #     # residual = y - correction
+    #     if success_condition
+    #     # if !is_logical_error(code, residual)
+    #         return 1
+    #     end
     end
+
+    return 0
 end
 
 
 
 
-# th_pl = plot(yscale=:log10)
-th_pl = plot()
+th_pl = plot(yscale=:log10)
+# th_pl = plot()
 
-samples = 100_000
+samples = 500_000
 
-for n in [3,5,7]
-
+# for n in [3]
+for n in [3,7,11,15]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -117,22 +138,24 @@ for n in [3,5,7]
 
 
     # initialize code
-    code = GKP_Rep_Code(n)
+    code = GKP_Rep_Code(n, false,true)
+    M_red = code.code
 
-    println("jere's the code \n", code)
-
-    println(size(code.J))
     logical = vec(code.logical')
     # Initialize Tanner graph
-    H = code.code;
+    # println("determinant of reduced generator = $(det(M_red))")
+    # println("generator: \n", M_red)
 
-    Mh, Vt, bottomSys = overcomplete_syndrome_preperation(H)
+    H = -M_red * J 
+    # Mh, Vt, bottomSys = overcomplete_syndrome_preperation(H)
 
-    G = inv(J*Mh')'
-    decision_H = inv(G)
-    sigmas = collect(0.37:0.01:0.45)
-    # sigmas = [0.1]
-    success_rates = Vector{Float64}(undef, length(sigmas))
+    G = inv(H)
+    decision_H = H
+    
+    sigmas = collect(0.2:0.05:0.55)
+    # sigmas = [0.35]
+
+    failure_rates = Vector{Float64}(undef, length(sigmas))
 
     for l in 1:length(sigmas)
 
@@ -144,21 +167,21 @@ for n in [3,5,7]
 
         success = @distributed (+) for i in 1:samples
             # println(n)
-            sample_and_decode(code,H,J,G, decision_H,logical,σ, n, Mh, Vt, bottomSys)
+            sample_and_decode(code,H,J,G, decision_H,logical,σ, n)
         end
         
 
-        sr =success/samples
-        println("σ = $σ; success rate: ", sr)
-        success_rates[l] = sr
+        fr =1-success/samples
+        println("σ = $σ; failure rate: ", fr)
+        failure_rates[l] = fr
     end
 
-    plot!(th_pl,sigmas,success_rates, label="n = $n",markershape=:xcross)
+    plot!(th_pl,sigmas,failure_rates, label="n = $n",markershape=:xcross)
 end
 
-title!("Decoder success probability")
+title!("Decoder failure probability")
 xlabel!(L"$\sigma$")
-ylabel!(L"$p_\mathrm{succ}$")
+ylabel!(L"$p_\mathrm{fail}$")
 display(th_pl)
 readline()
 
