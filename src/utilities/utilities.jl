@@ -86,3 +86,12 @@ function snr_db(σ::Float64)
     return 10 * log10(snr(σ))
 end
 
+
+"""
+    symplectic_form(n::Int)
+
+Return the symplectic form for `n` modes in the `qqpp` basis.
+"""
+function symplectic_form(n::Int)
+    return kron(Float64[0 1; -1 0], Matrix{Float64}(I, n, n))
+end
