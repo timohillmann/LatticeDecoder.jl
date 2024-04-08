@@ -59,7 +59,7 @@ end
 
     # println(compute_syndrome(H,symplectic_form(n),η-y))
 
-    bp_result = run_belief_propagation!(tg, η, σ, 30);
+    bp_result = run_belief_propagation!(tg, η, σ/2, 20);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -84,7 +84,8 @@ end
     residual = y - correction
     # println("residual: ",residual)
     commutator = (residual' * J * logical)
-    success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
+    # success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
+    success_condition = !is_logical_error(code,residual)
 
     # residual = (y - correction)
     # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
@@ -124,13 +125,13 @@ end
 
 
 
-th_pl = plot(yscale=:log10)
+th_pl = plot(yscale=:log10,yticks=[10^x for x in [-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-1.75),10^(-0.25)))
 # th_pl = plot()
 
 samples = 500_000
 
 # for n in [3]
-for n in [3,7,11,15]
+for n in [3,9,15]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -139,19 +140,23 @@ for n in [3,7,11,15]
 
     # initialize code
     code = GKP_Rep_Code(n, false,true)
-    M_red = code.code
-
     logical = vec(code.logical')
+
     # Initialize Tanner graph
-    # println("determinant of reduced generator = $(det(M_red))")
-    # println("generator: \n", M_red)
+    # M is the GKP generator, 
+    M = code.code
+    # H is the matrix used to construct the Tanner graph for BP
+    H = -M * J 
 
-    H = -M_red * J 
-    # Mh, Vt, bottomSys = overcomplete_syndrome_preperation(H)
 
+    # we can check that the determinant of the generator gives the correct logical dimension
+    # println("determinant of reduced generator = $(det(M))")
+
+    # the generator used in the classical algorithm to compute BP solution
     G = inv(H)
     decision_H = H
     
+    # values for the noise strength (linear scale, lattice units)
     sigmas = collect(0.2:0.05:0.55)
     # sigmas = [0.35]
 
@@ -179,11 +184,11 @@ for n in [3,7,11,15]
     plot!(th_pl,sigmas,failure_rates, label="n = $n",markershape=:xcross)
 end
 
-title!("Decoder failure probability")
+title!("Decoder failure probability (reduced)")
 xlabel!(L"$\sigma$")
 ylabel!(L"$p_\mathrm{fail}$")
-display(th_pl)
-readline()
+# display(th_pl)
+# readline()
 
 savefig(th_pl, "repetition_code_thr_plot.pdf")
 

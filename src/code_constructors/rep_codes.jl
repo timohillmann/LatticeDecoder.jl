@@ -1,5 +1,6 @@
 include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/concatenated_code_reduction.jl")
 
+ACCEPTANCE_THRESHOLD = 1E-5
 
 struct QuantumCode
     code::AbstractMatrix{Float64}
@@ -10,7 +11,9 @@ end
 
 function is_logical_error(code::QuantumCode, error::Vector{Float64})
     # check if symplectic product is integer
-    return any((code.logical * code.J * error ).% 1 .!= 0)
+    # return any(abs.(code.logical * code.J * error ).% 1 .> ACCEPTANCE_THRESHOLD)
+    commutator = code.logical * code.J * error
+    return any(abs.(commutator[1]-round(commutator[1])) > ACCEPTANCE_THRESHOLD)
 end
 
 
