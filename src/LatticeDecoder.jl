@@ -1,5 +1,7 @@
 module LatticeDecoder
 
+export stack_gkp_generator
+include("lattice_tools/concatenated_code_reduction.jl")
 
 # BP tools
 export initialize_tanner_graph, run_belief_propagation!
