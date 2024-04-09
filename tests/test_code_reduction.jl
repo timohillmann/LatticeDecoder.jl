@@ -57,14 +57,3 @@ function toric_3d_test_set()
 
     @test num_logicals ≈ log2(abs(det(M_q))) + log2(abs(det(M_p)))
 end
-
-
-function test_code_reduction()
-    @testset "Code reduction" begin
-        toric_3d_test_set()
-        toric_4d_test_set()
-    end
-
-end
-
-test_code_reduction()
