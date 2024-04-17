@@ -364,6 +364,41 @@ function divide!(g_out::gaussian, g1::gaussian, g2::gaussian)
 end
 
 
+function moment_matching(gs::AbstractVector{gaussian})
+    ws = Vector{Float64}(undef, length(gs))
+    for i in eachindex(ws)
+        ws[i] = gs[i].weight
+    end
+
+    ws = ws / sum(ws)
+
+    m = sum([g.mean * w for (g, w) in zip(gs, ws)])
+
+    Δ = sum([w * (g.var + g.mean^2) for (g, w) in zip(gs, ws)]) - m^2
+
+    return gaussian(m, max(Δ, MIN_VAR))
+end
+
+function moment_matching!(g_out::gaussian, gs::AbstractVector{gaussian})
+    ws = Vector{Float64}(undef, length(gs))
+    for i in eachindex(ws)
+        ws[i] = gs[i].weight
+    end
+
+    ws = ws / sum(ws)
+
+    m = sum([g.mean * w for (g, w) in zip(gs, ws)])
+
+    Δ = sum([w * (g.var + g.mean^2) for (g, w) in zip(gs, ws)]) - m^2
+
+    g_out.mean = m
+    g_out.var = max(Δ, MIN_VAR)
+    g_out.weight = 1.0
+end
+
+
+
+
 # g1 = gaussian(0.1, 0.1, 0.1)
 # g2 = gaussian(-0.2, 0.2, 0.2)
 # g3 = gaussian(-0.3, 0.3, 0.3)
