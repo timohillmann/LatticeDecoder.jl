@@ -1,6 +1,7 @@
 include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
 include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/list_sphere_decoder.jl")
 include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
+include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/code_constructors/classical_ldlc.jl")
 
 
 
@@ -33,6 +34,18 @@ function test_case_one()
     TestCaseOne = TestCaseLSD(H, y, σ)
     return TestCaseOne
 end
+
+
+function test_case_two()
+    H = classical_ldlc(5, 961)
+    y0 = [0.1, 0.2, 0.3, 0.4, 0.5]
+    y = randn(961) / 10
+    y[1:5] = y0
+    σ = 0.2
+    TestCaseTwo = TestCaseLSD(H, y, σ)
+    return TestCaseTwo
+end
+
 
 function test_collect_msg_vector_vn_idx(TC::TestCaseLSD, vn_idx::Int)
     vn = TC.tg.var_nodes[vn_idx]
@@ -86,7 +99,7 @@ function test_simplified_lsd(TC::TestCaseLSD)
 end
 
 
-function test_lsd_radius(lsd_inputs::ListSphereDecodingInput, β_min=1.0, β_max=10.0)
+function test_lsd_radius(lsd_inputs::ListSphereDecodingInput, β_min=1.0, β_max=5.0)
     num_old = 0
     for β = β_min:β_max
         lsd_inputs.β = β
@@ -97,74 +110,65 @@ function test_lsd_radius(lsd_inputs::ListSphereDecodingInput, β_min=1.0, β_max
     end
 end
 
-function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vector, D::Vector{Float64}, msg_vector::Vector{gaussian})
-    candidate_gaussians = Vector{gaussian}()
-    for i = 1:length(L)
-        mean = 0.0
-        var = inputs.Var
-        weight = exp(-1 / 2 * D[i])
-        log_weight = -1 / 2 * D[i]
-
-        for j = 1:length(L[i])
-            msg = msg_vector[j]
-            mean += (msg.mean + L[i][j] / msg.period) / msg.var
-        end
-        mean *= var
-        push!(candidate_gaussians, gaussian(mean, var, weight))
-    end
-    return candidate_gaussians
-end
 
 
 
-vn_idx = 1;
-nb_idx = 1;
-TC = test_case_one();
-msg_vector = _collect_msg_vector(TC.tg.var_nodes[vn_idx], nb_idx);
-lsd_inputs = ListSphereDecodingInput(msg_vector);
+# vn_idx = 1;
+# nb_idx = 1;
+# # TC = test_case_one();
+# TC = test_case_two();
+# msg_vector = _collect_msg_vector(TC.tg.var_nodes[vn_idx], nb_idx);
+# lsd_inputs = ListSphereDecodingInput(msg_vector);
 
-for β in [2.5, 3.0, 3.5, 4.5, 5.5, 6.5, 10.0, 20.0]
-    L, D = simplified_lsd(lsd_inputs)
+# for β in [2.5, 3.0, 3.5, 4.5, 5.5, 6.5, 10.0, 20.0]
+#     L, D = simplified_lsd(lsd_inputs)
 
-    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    println("β = ", β)
-    println("Num gaussians: ", length(L))
-    g = moment_matching(candidate_gaussians)
-    println("Mean: ", g.mean)
-    println("Var: ", g.var)
+#     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+#     println("β = ", β)
+#     println("Num gaussians: ", length(L))
+#     g = moment_matching(candidate_gaussians)
+#     println("Mean: ", g.mean)
+#     println("Var: ", g.var)
 
-end
-
-
-function lsd_variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
-    var_node = tg.var_nodes[vn_idx]
-    msg_vector = _collect_msg_vector(var_node, nb_idx)
-    lsd_inputs = ListSphereDecodingInput(msg_vector)
-    L, D = simplified_lsd(lsd_inputs)
-    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    return moment_matching(candidate_gaussians)
-end
+# end
 
 
+# function lsd_variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
+#     var_node = tg.var_nodes[vn_idx]
+#     msg_vector = _collect_msg_vector(var_node, nb_idx)
+#     lsd_inputs = ListSphereDecodingInput(msg_vector)
+#     L, D = simplified_lsd(lsd_inputs)
+#     sort_idx = sortperm(D)
+#     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+#     gs =candidate_gaussians[sort_idx]
+#     return moment_matching(candidate_gaussians[1:2])
+# end
 
-function variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
-    var_node = tg.var_nodes[vn_idx]
-    j = nb_idx
-    cn_idx, edge_weight = var_node.neighbours[j]
-    idx = var_node.pos_in_check_neighbour[j]
-    cn = tg.check_nodes[cn_idx]
 
-    gL = gaussian(var_node.message.mean, var_node.message.var)
-    gR = gaussian(var_node.message.mean, var_node.message.var)
 
-    for i = 1:length(var_node.messages)
-        if i != j  # don't include the message from the current check node
-            g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
-            prod!(gL, g1)
-            prod!(gR, g2)
-        end
-    end
-    return sum(gL, gR)
-end
+# function variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
+#     var_node = tg.var_nodes[vn_idx]
+#     j = nb_idx
+#     cn_idx, edge_weight = var_node.neighbours[j]
+#     idx = var_node.pos_in_check_neighbour[j]
+#     cn = tg.check_nodes[cn_idx]
 
-variable_node_message(TC.tg, 1, 1)
+#     gL = gaussian(var_node.message.mean, var_node.message.var)
+#     gR = gaussian(var_node.message.mean, var_node.message.var)
+
+#     for i = 1:length(var_node.messages)
+#         if i != j  # don't include the message from the current check node
+#             g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+#             prod!(gL, g1)
+#             prod!(gR, g2)
+#         end
+#     end
+#     return sum(gL, gR)
+# end
+
+# vn_idx = 3
+# for nb_idx in [1, 2, 3, 4, 5]
+#     println("nb_idx = ", nb_idx)
+#     println(variable_node_message(TC.tg, vn_idx, nb_idx))
+#     println(lsd_variable_node_message(TC.tg, vn_idx, nb_idx))
+# end

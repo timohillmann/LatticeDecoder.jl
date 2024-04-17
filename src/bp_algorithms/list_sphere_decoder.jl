@@ -9,8 +9,8 @@ const EPSILON = 1e-10
 function lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     for j = 1:length(vn.neighbours)
-        cn_idx, _ = var_node.neighbours[j]
-        idx = var_node.pos_in_check_neighbour[j]
+        cn_idx, _ = vn.neighbours[j]
+        idx = vn.pos_in_check_neighbour[j]
         cn = tg.check_nodes[cn_idx]
         _lsd_variable_node_message!(cn.messages[idx], vn, j)
     end
@@ -224,5 +224,24 @@ end
 Updates the β parameter of the List Sphere Decoding algorithm, see Wang & Mow: Eq. (45).
 """
 function update_beta!(inputs::ListSphereDecodingInput, DB::Float64, ϵ=EPSILON::Float64)
-    lsd_inputs.β = min(inputs.β, sqrt(DB^2 + 2 * log(1 / ϵ)))
+    inputs.β = min(inputs.β, sqrt(DB^2 + 2 * log(1 / ϵ)))
+end
+
+
+function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vector, D::Vector{Float64}, msg_vector::Vector{gaussian})
+    candidate_gaussians = Vector{gaussian}()
+    for i = 1:length(L)
+        mean = 0.0
+        var = inputs.Var
+        weight = exp(-1 / 2 * D[i])
+        log_weight = -1 / 2 * D[i]
+
+        for j = 1:length(L[i])
+            msg = msg_vector[j]
+            mean += (msg.mean + L[i][j] / msg.period) / msg.var
+        end
+        mean *= var
+        push!(candidate_gaussians, gaussian(mean, var, weight))
+    end
+    return candidate_gaussians
 end

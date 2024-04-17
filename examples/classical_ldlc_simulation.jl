@@ -1,6 +1,7 @@
 using Distributed
 addprocs(8);
 @everywhere using LatticeDecoder
+# using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -11,7 +12,7 @@ H = classical_ldlc(d, n, true);
 
 tg = initialize_tanner_graph(H);
 
-σ = 0.15;
+σ = 0.20;
 
 b = zeros(Int64, size(H, 1));
 b[1] = 1;
@@ -45,7 +46,7 @@ end
     G = generator_matrix(H)
     tg = initialize_tanner_graph(H)
     errors = @distributed (+) for i = 1:samples
-        random_bitstring!(b, n)
+        # random_bitstring!(b, n)
         y = encode(b, G)
         y .+= sample_error(σ, n)
         bp_result = run_belief_propagation!(tg, y, σ, max_iter)
@@ -98,20 +99,22 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
 end
 
 using Plots
-samples = 500;
-max_iter = 25;
+samples = 1000;
+max_iter = 10;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.85 * σ, 11)
+sigmas = range(σ, 0.8 * σ, 6)
 
 d = 5
-for n in [100, 1000]
+for n in [100]
     H = classical_ldlc(d, n, true)
-    # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
-    ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
+    ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
+
+    # ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
     ribbon = agresti_coull_confidence_interval.(ber, samples * n)
+    println(ber)
     plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,
-        marker=:circle, markersize=5, legend=:lowerleft, grid=true, ribbon=ribbon)
+        marker=:circle, markersize=5, grid=true, ribbon=ribbon)
 end
 # set x and y axis in log scale
 plot!(p, yscale=:log10)

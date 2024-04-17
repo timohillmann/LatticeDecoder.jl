@@ -1,4 +1,5 @@
 include("tanner_graph.jl")
+include("list_sphere_decoder.jl")
 
 VarNodeAlloc = FourGaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5))
 
@@ -76,8 +77,9 @@ end
 function variable_node_iterations!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
         # variable_node_messages!(tg, i)
-        variable_node_messages_allocationless!(tg, i)
+        # variable_node_messages_allocationless!(tg, i)
         # mm_variable_node_messages!(tg, i)
+        lsd_variable_node_messages!(tg, i)
     end
 end
 
@@ -275,6 +277,6 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
 end
 
 
-function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
-    return Int64.(round.(H * bp_result))
-end
+# function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
+#     return Int64.(round.(H * bp_result))
+# end

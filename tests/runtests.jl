@@ -8,6 +8,7 @@ include("test_lsd_decoder.jl")
     test_gaussian_assignment()
     test_gaussian_divide()
     test_moment_matching()
+    test_moment_matching!()
 end;
 
 @testset "concatenated_code_reduction.jl" begin
@@ -20,4 +21,9 @@ end;
     test_collect_msg_vector(TC1)
     test_all_t_vectors(TC1)
     test_simplified_lsd(TC1)
+
+    TC2 = test_case_two()
+    test_collect_msg_vector(TC2)
+    test_all_t_vectors(TC2)
+    test_simplified_lsd(TC2)
 end;
