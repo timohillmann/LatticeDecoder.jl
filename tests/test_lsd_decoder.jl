@@ -124,8 +124,6 @@ msg_vector = _collect_msg_vector(TC.tg.var_nodes[vn_idx], nb_idx);
 lsd_inputs = ListSphereDecodingInput(msg_vector);
 
 for β in [2.5, 3.0, 3.5, 4.5, 5.5, 6.5, 10.0, 20.0]
-
-    lsd_inputs.β = β
     L, D = simplified_lsd(lsd_inputs)
 
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
@@ -137,3 +135,36 @@ for β in [2.5, 3.0, 3.5, 4.5, 5.5, 6.5, 10.0, 20.0]
 
 end
 
+
+function lsd_variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
+    var_node = tg.var_nodes[vn_idx]
+    msg_vector = _collect_msg_vector(var_node, nb_idx)
+    lsd_inputs = ListSphereDecodingInput(msg_vector)
+    L, D = simplified_lsd(lsd_inputs)
+    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+    return moment_matching(candidate_gaussians)
+end
+
+
+
+function variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
+    var_node = tg.var_nodes[vn_idx]
+    j = nb_idx
+    cn_idx, edge_weight = var_node.neighbours[j]
+    idx = var_node.pos_in_check_neighbour[j]
+    cn = tg.check_nodes[cn_idx]
+
+    gL = gaussian(var_node.message.mean, var_node.message.var)
+    gR = gaussian(var_node.message.mean, var_node.message.var)
+
+    for i = 1:length(var_node.messages)
+        if i != j  # don't include the message from the current check node
+            g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+            prod!(gL, g1)
+            prod!(gR, g2)
+        end
+    end
+    return sum(gL, gR)
+end
+
+variable_node_message(TC.tg, 1, 1)

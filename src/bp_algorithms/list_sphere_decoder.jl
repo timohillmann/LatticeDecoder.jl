@@ -1,38 +1,45 @@
+# Implementation of the simplied List Sphere Decoding algorithm proposed by Wang & Mow.
+# Ref: X. Wang & W. Mow, "Efficient Decoder Design for Low-Density Lattice Codes From the Lattice Viewpoint", IEEE Open J. Commun. Soc. 4 1839-1854 (2023).
+#
 
-
+# Parameters for the List Sphere Decoding algorithm
 const W_MIN = 0.9
+const EPSILON = 1e-10
 
-
-function _lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
+function lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
-    for nb_idx = 1:length(vn.neighbours)
-        _lsd_variable_node_message!(tg, vn_idx, nb_idx)
+    for j = 1:length(vn.neighbours)
+        cn_idx, _ = var_node.neighbours[j]
+        idx = var_node.pos_in_check_neighbour[j]
+        cn = tg.check_nodes[cn_idx]
+        _lsd_variable_node_message!(cn.messages[idx], vn, j)
     end
 end
 
-function _lsd_variable_node_message!(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
-    msg_vector = _collect_msg_vector(tg, vn_idx, nb_idx)
+function _lsd_variable_node_message!(cn_message::gaussian, vn::VariableNode, nb_idx::Int)
+    msg_vector = _collect_msg_vector(vn, nb_idx)
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    moment_matching!(cn.messages[idx], candidate_gaussians)
+    moment_matching!(cn_message, candidate_gaussians)
 end
 
 
 
-function _collect_msg_vector(vn::VariableNode, nb_idx::Int64)
-    cn_idx, _ = vn.neighbours[nb_idx]
-    idx = vn.pos_in_check_neighbour[nb_idx]
+"""
+    _collect_msg_vector(vn::VariableNode, j::Int64)
 
-    # create vector of length d of type gaussian for the messages
+Collects the messages of a variable node `vn` for a specific neighbour `j` which will not be included in the message.
+This vector is used to construct the input for the List Sphere Decoding algorithm.
+"""
+function _collect_msg_vector(vn::VariableNode, j::Int64)
     msg_vector = Vector{gaussian}()
     for i = 1:length(vn.messages)
-        if i != nb_idx
+        if i != j
             push!(msg_vector, vn.messages[i])
         end
     end
     push!(msg_vector, vn.message)
-    # msg_vector[end].period = 1.0
     return msg_vector
 end
 
@@ -50,45 +57,54 @@ end
 
 
 """
-    ListSphereDecodingInput(msg_vector::Vector{Gaussian})
+    ListSphereDecodingInput(msg_vector::Vector{gaussian})
 
 Constructs the input for the List Sphere Decoding algorithm from a vector of Gaussian messages.
 
 The input consists of the following vectors:
-- `f_vector::Vector{Float64}`: The f vector.
-- `g_vector::Vector{Float64}`: The g vector.
-- `p_vector::Vector{Float64}`: The p vector.
-- `t_vector::Vector{Float64}`: The t vector.
-- `R_vector::Vector{Float64}`: The R vector.
+- `f_vector::Vector{Float64}`: The f vector, f[i] = 1 - Σ_{l = 1}^{i} t_l^2. Wang & Mow: Eq. (48)
+- `g_vector::Vector{Float64}`: The g vector, g[i] = sqrt(var[i] * period[i]^2). Wang & Mow: Eq. (49)
+- `p_vector::Vector{Float64}`: The p vector, It elements are given by the product of the mean and the period of the message. Wang & Mow: after Eq. (54)
+- `t_vector::Vector{Float64}`: The t vector, t[i] = sign(period[i]) * sqrt(V / var[i]). Wang & Mow: after Eq. (40)
+- `R_vector::Vector{Float64}`: The squared R vector, R[i] = 1 / g[i]^2 * f[i]) / sqrt(f[i-1]. Wang & Mow: Eq. (42)
 - `Var::Float64`: The variance of the message vector.
-- `β::Float64`: The β parameter.
-- `u_d::Float64`: The u_d parameter.
+- `β::Float64`: The β parameter, the search radius.
+- `u_d::Float64`: The u_d parameter, u_d = sqrt(Var) * mean[d] / var[d]. Wang & Mow: after Eq. (51)
 """
 function ListSphereDecodingInput(msg_vector::Vector{gaussian})
+
+    # Init storage vectors
     t_vector = zeros(Float64, length(msg_vector))
     g_vector = zeros(Float64, length(msg_vector))
     p_vector = zeros(Float64, length(msg_vector))
+
+    # Init float values
     Vinv = 0.0
     β = 1.0
+
+
     for i = 1:(length(msg_vector))
         msg = msg_vector[i]
         Vinv += 1 / msg.var
         t_vector[i] = sign(msg.period) / sqrt(msg.var)
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
-        β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β
+        β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
     end
 
     # overwrite the last element of p_vector with the mean of the last message
     p_vector[end] = msg_vector[end].mean
     u_d = msg_vector[end].mean / msg_vector[end].var / Vinv
 
+    # Normalize t_vector
     t_vector *= 1 / sqrt(Vinv)
-    f_vector = _calculate_f_vector(t_vector)
 
+    # Calculate f_vector and R_vector based on precompyted vectors
+    f_vector = _calculate_f_vector(t_vector)
     R_vector = _calculate_R_square_diag(g_vector, f_vector)
 
-    ListSphereDecodingInput(f_vector, g_vector, p_vector, t_vector, R_vector, 1 / Vinv, β, u_d)
+    # initialize LSD input
+    return ListSphereDecodingInput(f_vector, g_vector, p_vector, t_vector, R_vector, 1 / Vinv, β, u_d)
 end
 
 
@@ -129,10 +145,10 @@ end
     simplified_lsd(inputs::AbstractNode)
 
     Simplified version of the List Sphere Decoding algorithm.
-
+    See Wang & Mow: Algorithm 1 for more details.
 """
 function simplified_lsd(inputs::ListSphereDecodingInput)
-
+    # TODO: Improve the performance of this function
 
     # Point to inputs
     p = inputs.p_vector
@@ -140,9 +156,9 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
     g = inputs.g_vector
     f = inputs.f_vector
     R_sq = inputs.R_vector
-    # β = inputs.β
     d = length(p)
 
+    # Initialize variables
     k = d - 1
     dist = zeros(Float64, d)
     L = Vector{Vector{Int16}}()
@@ -202,6 +218,11 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
 end
 
 
-function update_beta!(inputs::ListSphereDecodingInput, DB::Float64, ϵ=1e-10::Float64)
+"""
+    update_beta!(inputs::ListSphereDecodingInput, DB::Float64, ϵ=1e-10::Float64)
+
+Updates the β parameter of the List Sphere Decoding algorithm, see Wang & Mow: Eq. (45).
+"""
+function update_beta!(inputs::ListSphereDecodingInput, DB::Float64, ϵ=EPSILON::Float64)
     lsd_inputs.β = min(inputs.β, sqrt(DB^2 + 2 * log(1 / ϵ)))
 end
