@@ -1,12 +1,13 @@
 using Distributed
-using LaTeXStrings
+@everywhere using LaTeXStrings
 # if nprocs()<6
 #     addprocs(6-nprocs())
 # end
 # @everywhere using LatticeDecoder
 @everywhere using LinearAlgebra
-using Plots
+@everywhere using Plots
 # using LatticeAlgorithms
+@everywhere using LLLplus
 
 
 if true
@@ -27,7 +28,7 @@ end
 # include("../src/code_constructors/rep_codes.jl")
 
 
-@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mh, Vt, bottomSys)
+@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mh, Vt, bottomSys, Mperp_LLL::AbstractMatrix)
     # tg = initialize_tanner_graph(code);
     tg = initialize_tanner_graph(H);
 
@@ -41,6 +42,10 @@ end
     
     z = integer_solve(bottomSys, syndrome)
     η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
+
+
+    # reduce the error candidate η to the centered parallelepiped of the dual lattice
+    η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
     
     # println(compute_syndrome(H*J,J,η))
     # println(syndrome,"\n")
@@ -67,44 +72,44 @@ end
     # correction = H'*dec
     correction = η - G*dec
     
-    residual = y - correction
-
-    # check if resitual error is a (possibly trivial) lgical operator
-    if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-9)
-        display(residual')
-    end
+    
     # println("residual: ",residual)
-    # commutator = (residual' * J * logical)
-    # success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-    success_condition = !is_logical_error(code,residual)
+    current_best_norm = norm(correction)
+    for j in 1:length(correction)
+        for k in -3:3
+            new_dec = dec[:]
+            new_dec[j]= new_dec[j]+k
+            new_candidate =  η - G*new_dec
+            new_norm = norm(new_candidate)
+            if new_norm<current_best_norm
+                # println("found new best")
+                current_best_norm = new_norm
+                correction = new_candidate
+            end
+        end
+    end
+    #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
+    #     commutator = ((y - correction )' * J * logical)
+    #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
+    #     # residual = y - correction
+    #     if success_condition
     # residual = (y - correction)
     # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     # println("commutator: ",commutator)
+    
+    residual = y - correction
+    # check if resitual error is a (possibly trivial) lgical operator
+    if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-9)
+        display(residual')
+    end
+
+    success_condition = !is_logical_error(code,residual)
     if success_condition
         # if !is_logical_error(code, residual)
         # println("diff syndrome: ",round.(syndrome-compute_syndrome(H*J,J,correction),digits=3))
         return 1
         # else
-        #     current_best = norm(correction)
-        #     for j in 1:length(correction)
-        #         for k in [-2,-1,1,2]
-        #             new_dec = dec[:]
-        #             new_dec[j]= new_dec[j]+k
-        #             new_candidate =  η - G*new_dec
-        #             new_norm = norm(new_candidate)
-        #             if new_norm<current_best
-        #                 # println("found new best")
-        #                 current_best = new_norm
-        #                 correction = new_candidate
-        #             end
-        #         end
-        #     end
-        #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
-        #     commutator = ((y - correction )' * J * logical)
-        #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-        #     # residual = y - correction
-        #     if success_condition
     #     # if !is_logical_error(code, residual)
     #         return 1
     #     end
@@ -118,7 +123,7 @@ end
 
 
 
-th_pl = plot(yscale=:log10,yticks=[10^x for x in [-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-1.75),10^(-0.25)))
+th_pl = plot(yscale=:log10,yticks=[10^x for x in  [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
 # th_pl = plot()
 
 samples = 500_000
@@ -148,18 +153,31 @@ for n in [3,9,15]
     # we prepare the system to compute an error candidate compatible
     # with the overcomplete syndrome obtained from measuring stabilizers in the rows of M
     Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
-
+    
+    # we use the Hermite reduced Mh to define the generator of the dual lattice
+    Mperp = inv(J*Mh')
+    # and we LLL reduce it 
+    # (note that LLLPlus uses the column-convention: 
+    # columns of the matrix generate the lattice - we use row-convention)
+    B, _ = LLLplus.lll(Mperp',0.9)
+    Mperp_LLL = B'
+    
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(Mh))")
+    
+    
     
     # in the case of an overcomplete syndrome we need to calculate
     # the decision_H from an invertible matrix so that we also 
     # can calculate the generator matrix for the classical code generation
     decision_H = -Mh * J
-
+    
+    
+    
     # the generator used in the classical algorithm to compute BP solution
     G = inv(decision_H)
     
+
     # values for the noise strength (linear scale, lattice units)
     sigmas = collect(0.2:0.05:0.55)
     # sigmas = [0.35]
@@ -172,7 +190,7 @@ for n in [3,9,15]
 
         success = @distributed (+) for i in 1:samples
             # println("decision H is now of size $(size(decision_H))")
-            sample_and_decode(code,H,J,G, decision_H,logical,σ, n, Mh, Vt, bottomSys)
+            sample_and_decode(code,H,J,G, decision_H,logical,σ/2, n, Mh, Vt, bottomSys,Mperp_LLL)
         end
         
 

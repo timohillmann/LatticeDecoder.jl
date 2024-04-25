@@ -1,5 +1,6 @@
 using Distributed
-using LaTeXStrings
+@everywhere using LaTeXStrings
+@everywhere using LLLplus
 if nprocs()<6
     addprocs(6-nprocs())
 end
@@ -43,7 +44,7 @@ end
 
 
 
-@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64)
+@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mperp_LLL::AbstractMatrix)
     # tg = initialize_tanner_graph(code);
     tg = initialize_tanner_graph(H);
     
@@ -56,6 +57,9 @@ end
 
     # η = compute_eta(H, syndrome)
     η = -G * syndrome
+
+    # reduce the error candidate η to the centered parallelepiped of the dual lattice
+    η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
 
     # println(compute_syndrome(H,symplectic_form(n),η-y))
 
@@ -81,9 +85,25 @@ end
     # correction = H'*dec
     correction = η - G*dec
 
+
+    current_best_norm = norm(correction)
+    for j in 1:length(correction)
+        for k in -3:3
+            new_dec = dec[:]
+            new_dec[j]= new_dec[j]+k
+            new_candidate =  η - G*new_dec
+            new_norm = norm(new_candidate)
+            if new_norm<current_best_norm
+                # println("found new best")
+                current_best_norm = new_norm
+                correction = new_candidate
+            end
+        end
+    end
+
     residual = y - correction
     # println("residual: ",residual)
-    commutator = (residual' * J * logical)
+    # commutator = (residual' * J * logical)
     # success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
     success_condition = !is_logical_error(code,residual)
 
@@ -94,29 +114,6 @@ end
     if success_condition
     # if !is_logical_error(code, residual)
         return 1
-    # else
-    #     current_best = norm(correction)
-    #     for j in 1:length(correction)
-    #         for k in [-2,-1,1,2]
-    #             new_dec = dec[:]
-    #             new_dec[j]= new_dec[j]+k
-    #             new_candidate =  η - G*new_dec
-    #             new_norm = norm(new_candidate)
-    #             if new_norm<current_best
-    #                 # println("found new best")
-    #                 current_best = new_norm
-    #                 correction = new_candidate
-    #             end
-    #         end
-    #     end
-    #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
-    #     commutator = ((y - correction )' * J * logical)
-    #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-    #     # residual = y - correction
-    #     if success_condition
-    #     # if !is_logical_error(code, residual)
-    #         return 1
-    #     end
     end
 
     return 0
@@ -125,7 +122,7 @@ end
 
 
 
-th_pl = plot(yscale=:log10,yticks=[10^x for x in [-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-1.75),10^(-0.25)))
+th_pl = plot(yscale=:log10,yticks=[10^x for x in [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
 # th_pl = plot()
 
 samples = 500_000
@@ -148,6 +145,13 @@ for n in [3,9,15]
     # H is the matrix used to construct the Tanner graph for BP
     H = -M * J 
 
+    # we use the generator M to define the generator of the dual lattice
+    Mperp = inv(J*M')
+    # and we LLL reduce it 
+    # (note that LLLPlus uses the column-convention: 
+    # columns of the matrix generate the lattice - we use row-convention)
+    B, _ = LLLplus.lll(Mperp')
+    Mperp_LLL = B'
 
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(M))")
@@ -172,7 +176,7 @@ for n in [3,9,15]
 
         success = @distributed (+) for i in 1:samples
             # println(n)
-            sample_and_decode(code,H,J,G, decision_H,logical,σ, n)
+            sample_and_decode(code,H,J,G, decision_H,logical,σ/2, n,Mperp_LLL)
         end
         
 

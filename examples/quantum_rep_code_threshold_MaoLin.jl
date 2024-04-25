@@ -1,35 +1,80 @@
-# N = 3
-# σ = 0.5
-# num_samples = 10_000
 using LatticeAlgorithms
 using Plots
 using Counters
+using LinearAlgebra
+
+
+using Distributed
+if true
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/overcomplete_syndrome.jl")
+    
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/code_constructors/rep_codes.jl")
+    
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
+    
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
+    # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
+    
+    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
+end
+
+
+function logical_error(b::AbstractVector, Mperp::AbstractMatrix)
+    commutators = Mperp * Ω_matrix(Mperp) * Mperp'*b
+    return (any(commutators-round.(commutators) .>1e-3))
+end
+
+num_samples = 10_000
+
 sigmas = range(0.15, 0.4, 11);
-search_intervals = [sqrt(2) / 2.0]  # range(0.5, 1.0, 31);
-Ns = [9, 13, 17, 21];
-p = plot()
+search_intervals = [sqrt(2)]  # range(0.5, 1.0, 31);
+Ns = [3,13,23];
+p = plot(xlabel="sigma", ylabel="Rate", title="Logical error rate for GKP repetition code")
 for N in Ns
     rate = []
+    rate_alt = []
     for e in search_intervals
         for σ in sigmas
             M = rep_rec(N)
             tg = initialize_tanner_graph(M)
-            Mperp = GKP_logical_operator_generator_canonical(M)
+            # Mperp = GKP_logical_operator_generator_canonical(M)
+            Mperp = inv(Ω_matrix(M)*M')
             ξs = [σ * randn(2 * N) for _ in 1:num_samples]
 
 
             ys = []
+            ys_alt = []
             for ξ in ξs
                 y = run_belief_propagation!(tg, ξ, σ, N, e)
                 push!(ys, copy(y))
+
+                s = mod.(( sqrt(2π)* M * inv(Ω_matrix(M)) * ξ ), 2π );
+                η = (-1/sqrt(2π))*inv(M*Ω_matrix(M)) * s 
+                y_alt = run_belief_propagation!(tg, η, σ, N, e)
+                push!(ys, copy(y))
+                push!(ys_alt, copy(y_alt))
             end
-            ys = [hard_decision(y, Mperp) for y in ys]
-            us = [inv(transpose(sqrt(2π) * Mperp)) * y for y in ys]
-            logicals = [mod.(round.(Int, u[1:2]), 2) for u in us]
-            push!(rate, 1 - counter(logicals)[[0, 0]] / num_samples)
+            bs = [hard_decision(y, Mperp') for y in ys]
+            push!(rate, count(x->logical_error(x, Mperp),bs)/num_samples)
+            bs_alt = [hard_decision(y_alt, Mperp') for y_alt in ys_alt]
+            push!(rate_alt, count(x->logical_error(x, Mperp),bs_alt)/num_samples)
+            # us = [inv(transpose(sqrt(2π) * Mperp)) * y for y in ys]
+            # us_alt = [inv(transpose(sqrt(2π) * Mperp)) * y_alt for y_alt in ys_alt]
+
+            # logicals = [mod.(round.(Int, u[1:2]), 2) for u in us]
+            # push!(rate, 1 - counter(logicals)[[0, 0]] / num_samples)
+            
+            # logicals_alt = [mod.(round.(Int, u[1:2]), 2) for u in us]
+            # push!(rate_alt, 1 - counter(logicals_alt)[[0, 0]] / num_samples)
         end
+        plot!(p, sigmas, rate, label="N = $N, interval = $e")
+        plot!(p, sigmas, rate_alt, label="N_alt = $N, interval = $e",linestyle=:dash)
     end
-    plot!(p, sigmas, rate, label="N = $N", xlabel="e", ylabel="Rate", title="Logical error rate for GKP repetition code")
+    # println("rate: ", rate)
+    # println("rate_alt: ", rate_alt)
+
 end
 # set axis log scale
 plot!(p, yscale=:log10)
@@ -38,9 +83,6 @@ plot!(p, yscale=:log10)
 # plot!(p, [min(sigmas...), max(sigmas...)], [0.75, 0.75], label="0.75", lw=1, ls=:dash, color=:black)
 
 display(p)
-
-
-
 # N = 3
 # σ = 0.8
 # M = rep_rec(N)
@@ -97,7 +139,6 @@ display(p)
 ########################################################
 ### look from here
 
-using LinearAlgebra
 
 N = 3
 σ = 0.1
@@ -116,9 +157,9 @@ s = mod.(( sqrt(2π)* M * inv(Ω_matrix(M)) * ξ ), 2π );
 #         e = -2π + e
 #     end
 # end
-(ξ-η)
 # η = (-1/sqrt(2π))*(Ω_matrix(M)*Mperp)' * s  ;
 η = (-1/sqrt(2π))*inv(M*Ω_matrix(M)) * s # USING THIS DEFINITION OF η
+(ξ-η)
 b=(-1/sqrt(2π))*inv(Mperp')*(ξ-η)
 mod.(( -sqrt(2π)* M * Ω_matrix(M) * (ξ- η )), 2π )
 
@@ -152,27 +193,19 @@ M * Ω_matrix(M) * Mperp'
 
 
 
-using Distributed
-if true
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/overcomplete_syndrome.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/code_constructors/rep_codes.jl")
-
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
-
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
-    # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
-
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
-end
 
 
 tg = initialize_tanner_graph(M)
 ybp = run_belief_propagation!(tg, ξ, σ, N)
 ybp_p = run_belief_propagation!(tg, η, σ, N)
-b = hard_decision(y, Mperp')
+b = hard_decision(ybp, Mperp')
+bp = hard_decision(ybp_p, Mperp')
+
+Mperp * Ω_matrix(M) * Mperp'*b
+Mperp * Ω_matrix(M) * Mperp'*bp
+
+
 
 
 # us = [inv(transpose(sqrt(2π) * Mperp)) * y for y in ys]
