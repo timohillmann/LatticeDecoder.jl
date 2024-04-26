@@ -87,7 +87,8 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian})
         t_vector[i] = sign(msg.period) / sqrt(msg.var)
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
-        β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
+        # β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
+        β = max(β, 1 / sqrt(msg.var * msg.period^2))
     end
 
     # overwrite the last element of p_vector with the mean of the last message
@@ -119,7 +120,7 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
             mean += (msg.mean + L[i][j] / msg.period) / msg.var
         end
         mean *= var
-        candidate_gaussians[i], gaussian(mean, var, weight)
+        candidate_gaussians[i] = gaussian(mean, var, weight)
     end
     return candidate_gaussians
 end

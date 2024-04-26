@@ -86,3 +86,22 @@ function snr_db(σ::Float64)
     return 10 * log10(snr(σ))
 end
 
+
+"""
+    symbol_error_rate_rounding(n::Int64, σ::Float64)
+
+Return the symbol error rate for a given number of symbols `n` and standard deviation `σ`.
+"""
+function symbol_error_rate_rounding(n::Int64, σ::Float64)
+    return 1 - (1 - 2 * normcdf(-1 / (2 * σ)))^n
+end
+
+
+"""
+    symbol_error_rate_hard_decision(n::Int64, σ::Vector{Float64})
+
+Return the symbol error rate for a given number of symbols `n` and standard deviation `σ`.
+"""
+function symbol_error_rate_hard_decision(n::Int64, σ::Vector{Float64})
+    return 1 - (1 - 2 * normcdf(-1 ./ (2 * σ)))^n
+end
