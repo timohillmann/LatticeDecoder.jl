@@ -68,7 +68,6 @@ function test_moment_matching()
     g3 = gaussian(-0.3, 0.3, 0.3)
 
     gs = [[g1, g2], [g1, g3], [g2, g3]]
-
     @testset "moment_matching" begin
         for _gs in gs
             g_sum = sum(_gs...)
@@ -79,3 +78,17 @@ function test_moment_matching()
 end
 
 
+function test_moment_matching!()
+    g1 = gaussian(0.1, 0.1, 0.1)
+    g2 = gaussian(-0.2, 0.2, 0.2)
+    g3 = gaussian(-0.3, 0.3, 0.3)
+    g_out = gaussian(0.0, 0.5, 0.5)
+    gs = [[g1, g2], [g1, g3], [g2, g3]]
+    @testset "moment_matching!" begin
+        for _gs in gs
+            g_sum = sum(_gs...)
+            moment_matching!(g_out, _gs)
+            @test g_sum ≈ g_out
+        end
+    end
+end
