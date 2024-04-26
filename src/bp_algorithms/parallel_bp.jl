@@ -104,7 +104,7 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
+                g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, tg.seach_intervals)
                 prod!(gL, g1)
                 prod!(gR, g2)
             end
@@ -131,7 +131,7 @@ function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, 
 
         for i = 1:length(var_node.messages)
             if i != j  # don't include the message from the current check node
-                nearest!(Alloc.g1, Alloc.g2, var_node.messages[i], var_node.message.mean, 1.5)
+                nearest!(Alloc.g1, Alloc.g2, var_node.messages[i], var_node.message.mean, tg.search_intervals)
                 prod!(Alloc.gL, Alloc.g1)
                 prod!(Alloc.gR, Alloc.g2)
 
@@ -172,7 +172,7 @@ function variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn
 
     for i = 1:length(vn.messages)
         cn_idx, edge_weight = vn.neighbours[i]
-        g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, 1.5)
+        g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, tg.search_intervals)
         prod!(gL, g1)
         prod!(gR, g2)
     end
@@ -195,7 +195,7 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
 
 
     for i = 1:length(vn.messages)
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, tg.seach_intervals)
         prod!(Alloc.gL, Alloc.g1)
         prod!(Alloc.gR, Alloc.g2)
     end
@@ -215,7 +215,7 @@ function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::Fo
     Alloc.gR.weight = 1.0
 
     for i = 1:length(vn.messages)
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, 1.5)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[i], vn.message.mean, tg.search_intervals)
         prod!(Alloc.gL, Alloc.g1)
         prod!(Alloc.gR, Alloc.g2)
     end
@@ -231,7 +231,7 @@ function mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64, Alloc::FourG
         cn_idx, edge_weight = vn.neighbours[j]
         idx = vn.pos_in_check_neighbour[j]
         cn = tg.check_nodes[cn_idx]
-        nearest!(Alloc.g1, Alloc.g2, vn.messages[j], vn.message.mean, vn.messages[j].period)
+        nearest!(Alloc.g1, Alloc.g2, vn.messages[j], vn.message.mean, tg.search_intervals)
         gL_j = divide(Alloc.gL, Alloc.g1)
         gR_j = divide(Alloc.gR, Alloc.g2)
         sum!(tg.check_nodes[cn_idx].messages[idx], gL_j, gR_j)
@@ -258,7 +258,10 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64)
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, search_radius::Union{Float64, Dict{Float64, Float64}, Nothing}=nothing)
+    if search_radius !isnothing
+        tg.search_intervals = search_radius
+
     # initilization
     initialize_messages!(tg, message, σ)
 
