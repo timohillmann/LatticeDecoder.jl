@@ -88,6 +88,16 @@ end
 
 
 """
+    symplectic_form(n::Int)
+
+Return the symplectic form for `n` modes in the `qqpp` basis.
+"""
+function symplectic_form(n::Int)
+    return kron(Float64[0 1; -1 0], Matrix{Float64}(I, n, n))
+end
+
+
+"""
     symbol_error_rate_rounding(n::Int64, σ::Float64)
 
 Return the symbol error rate for a given number of symbols `n` and standard deviation `σ`.

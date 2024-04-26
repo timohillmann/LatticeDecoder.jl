@@ -99,11 +99,11 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
 end
 
 using Plots
-samples = 1000;
-max_iter = 10;
+samples = 500;
+max_iter = 25;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.8 * σ, 6)
+sigmas = range(σ, 0.85 * σ, 11)
 
 d = 5
 for n in [100]
