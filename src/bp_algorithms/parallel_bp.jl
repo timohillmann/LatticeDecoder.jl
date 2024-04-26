@@ -1,5 +1,5 @@
 include("tanner_graph.jl")
-include("list_sphere_decoder.jl")
+include("list_sphere_decoder_gaussians.jl")
 
 VarNodeAlloc = FourGaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5))
 

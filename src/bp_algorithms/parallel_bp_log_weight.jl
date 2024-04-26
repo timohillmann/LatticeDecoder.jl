@@ -1,4 +1,5 @@
 include("tanner_graph_log_weight.jl")
+include("list_sphere_decoder_log_weight.jl")
 
 VarNodeAlloc = FourGaussianLogAlloc(gaussian_log_weight(0.0, 0.5))
 
@@ -80,7 +81,8 @@ function variable_node_iterations!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
         # variable_node_messages!(tg, i)
         # variable_node_messages_allocationless!(tg, i)
-        mm_variable_node_messages!(tg, i)
+        # mm_variable_node_messages!(tg, i)
+        variable_node_messages_allocationless!(tg, i)
     end
 end
 

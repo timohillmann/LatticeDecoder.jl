@@ -60,11 +60,11 @@ integer_solve(V::BottomSystem, s::Vector) = interger_solve(V.VbH, -V.Vb * s)
 
 
 """
-    compute_syndrome(M::AbstractMatrix, J::SymplecticForm, error::Vector{Float64})
+    compute_syndrome(M::AbstractMatrix, J, error::Vector{Float64})
 
 Computes the syndrome of a given error using the symplectic form J.
 """
-function compute_syndrome(M::AbstractMatrix, J::SymplecticForm, error::Vector{Float64})
+function compute_syndrome(M::AbstractMatrix, J, error::Vector{Float64})
     return M * J * error .% 1
 end
 

@@ -23,11 +23,11 @@ end
 
 
 """
-    _lsd_variable_node_message!(cn_message::gaussian, vn::VariableNode, nb_idx::Int)
+    _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
 
 Updates the message of a variable node `vn` for a specific neighbour `nb_idx` using the List Sphere Decoding algorithm.
 """
-function _lsd_variable_node_message!(cn_message::gaussian, vn::VariableNode, nb_idx::Int)
+function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
     msg_vector = _collect_msg_vector(vn, nb_idx)
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
@@ -43,7 +43,7 @@ Collects the messages of a variable node `vn` for a specific neighbour `j` which
 This vector is used to construct the input for the List Sphere Decoding algorithm.
 """
 function _collect_msg_vector(vn::VariableNode, j::Int64)
-    msg_vector = Vector{gaussian}()
+    msg_vector = Vector{gaussian_log_weight}()
     for i = 1:length(vn.messages)
         if i != j
             push!(msg_vector, vn.messages[i])
@@ -55,7 +55,7 @@ end
 
 
 """
-    ListSphereDecodingInput(msg_vector::Vector{gaussian})
+    ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
 
 Constructs the input for the List Sphere Decoding algorithm from a vector of Gaussian messages.
 
@@ -69,7 +69,7 @@ The input consists of the following vectors:
 - `β::Float64`: The β parameter, the search radius.
 - `u_d::Float64`: The u_d parameter, u_d = sqrt(Var) * mean[d] / var[d]. Wang & Mow: after Eq. (51)
 """
-function ListSphereDecodingInput(msg_vector::Vector{gaussian})
+function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
 
     # Init storage vectors
     t_vector = zeros(Float64, length(msg_vector))
@@ -107,12 +107,11 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian})
 end
 
 
-function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vector, D::Vector{Float64}, msg_vector::Vector{gaussian})
-    candidate_gaussians = Vector{gaussian}(undef, length(D))
+function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vector, D::Vector{Float64}, msg_vector::Vector{gaussian_log_weight})
+    candidate_gaussians = Vector{gaussian_log_weight}(undef, length(D))
     for i = 1:length(L)
         mean = 0.0
         var = inputs.Var
-        weight = exp(-1 / 2 * D[i])
         log_weight = -1 / 2 * D[i]
 
         for j = 1:length(L[i])
@@ -120,7 +119,7 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
             mean += (msg.mean + L[i][j] / msg.period) / msg.var
         end
         mean *= var
-        candidate_gaussians[i] = gaussian(mean, var, weight)
+        candidate_gaussians[i] = gaussian_log_weight(mean, var, log_weight)
     end
     return candidate_gaussians
 end
