@@ -120,6 +120,12 @@ function nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Float6
 
 end
 
+
+nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Dict{Float64,Float64}) = nearest!(g1, g2, g, y, e[g.period])
+# nearest!(g1::gaussian, g2::gaussian, g::gaussian, y::Float64, e::Function) = nearest!(g1, g2, g, y, e)
+
+
+
 """
     sum(g1::gaussian, g2::gaussian)
 

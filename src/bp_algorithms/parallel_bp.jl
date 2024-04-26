@@ -273,8 +273,3 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
 
     return tg.bp_result
 end
-
-
-function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
-    return Int64.(round.(H * bp_result))
-end
