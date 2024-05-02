@@ -82,7 +82,8 @@ function variable_node_iterations!(tg::TannerGraph)
         # variable_node_messages!(tg, i)
         # variable_node_messages_allocationless!(tg, i)
         # mm_variable_node_messages!(tg, i)
-        variable_node_messages_allocationless!(tg, i)
+        # variable_node_messages_allocationless!(tg, i)
+        lsd_variable_node_messages!(tg, i)
     end
 end
 

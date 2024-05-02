@@ -18,9 +18,9 @@ mutable struct gaussian_log_weight <: Gaussian
 end
 
 gaussian_log_weight(mean::Float64, var::Float64, log_weight::Float64) =
-    gaussian_log_weight(mean, var, log_weight, 0.0)
+    gaussian_log_weight(mean, var, log_weight, 1.0)
 
-gaussian_log_weight(mean::Float64, var::Float64) = gaussian_log_weight(mean, var, 0.0, 0.0)
+gaussian_log_weight(mean::Float64, var::Float64) = gaussian_log_weight(mean, var, 0.0, 1.0)
 
 Base.zero(gaussian_log_weight) = 0.0
 
@@ -270,8 +270,43 @@ function moment_matching(gs::AbstractVector{gaussian_log_weight})
         error("Variance is negative")
     end
 
-    return gaussian_log_weigth(m, Δ)
+    return gaussian_log_weight(m, Δ)
 end
+
+
+"""
+    moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_log_weigth})
+
+A momment matching function written for gaussian_log_weigths input which weight represented in the log basis.
+"""
+function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_log_weight})
+
+    # raise exception if gs is empty
+    if isempty(gs)
+        error("gs is empty")
+    end
+
+    # Convert log_weights to normal weights and normalize in the same step. 
+    ws = Vector{Float64}(undef, length(gs))
+    for i in eachindex(ws)
+        ws[i] = 1 / (sum(exp(g.log_weight - gs[i].log_weight) for g in gs))
+    end
+
+    # Compute the mean
+    m = sum([g.mean * w for (g, w) in zip(gs, ws)])
+
+    # Compute the variance
+    Δ = sum([w * (g.var + g.mean^2) for (g, w) in zip(gs, ws)]) - m^2
+    if Δ < 0
+        println(gs)
+        error("Variance is negative")
+    end
+
+    g.mean = m
+    g.var = max(Δ, MIN_VAR)
+end
+
+
 
 
 """

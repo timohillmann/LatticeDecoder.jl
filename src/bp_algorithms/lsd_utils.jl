@@ -1,6 +1,8 @@
 # This file contains the List Sphere Decoding algorithm implementation.
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
+const EPSILON = 1e-5
+
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}
@@ -9,6 +11,7 @@ mutable struct ListSphereDecodingInput
     R_vector::Vector{Float64}
     Var::Float64
     β::Float64
+    β1::Float64
     u_d::Float64
 end
 
@@ -51,7 +54,6 @@ end
 """
 function simplified_lsd(inputs::ListSphereDecodingInput)
     # TODO: Improve the performance of this function
-
     # Point to inputs
     p = inputs.p_vector
     t = inputs.t_vector
@@ -79,7 +81,7 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
     dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
 
     while k <= (d - 1)
-        if dist[k] < (inputs.β)^2
+        if dist[k] <= (inputs.β)^2
             if k == 1
                 push!(L, round.(Int16, copy(z)))
                 push!(D, copy(dist[k]))
@@ -126,5 +128,5 @@ end
 Updates the β parameter of the List Sphere Decoding algorithm, see Wang & Mow: Eq. (45).
 """
 function update_beta!(inputs::ListSphereDecodingInput, DB::Float64, ϵ=EPSILON::Float64)
-    inputs.β = min(inputs.β, sqrt(DB^2 + 2 * log(1 / ϵ)))
+    inputs.β = min(inputs.β1, sqrt(DB - 2 * log(ϵ)))
 end

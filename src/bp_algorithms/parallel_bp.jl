@@ -279,4 +279,4 @@ end
 
 # function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
 #     return Int64.(round.(H * bp_result))
-# end
+# end``
