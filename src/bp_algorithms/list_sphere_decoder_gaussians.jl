@@ -4,7 +4,6 @@
 include("lsd_utils.jl")
 # Parameters for the List Sphere Decoding algorithm
 const W_MIN = 0.9
-const EPSILON = 1e-10
 
 """
     lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
@@ -32,11 +31,11 @@ function _lsd_variable_node_message!(cn_message::gaussian, vn::VariableNode, nb_
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     if length(D) == 0
-        println("Found length 0")
-        return
+        return 0
     end
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
     moment_matching!(cn_message, candidate_gaussians)
+    return length(D)
 end
 
 
@@ -82,7 +81,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian})
 
     # Init float values
     Vinv = 0.0
-    β = 1.0
+    β = 0.0
 
 
     for i = 1:(length(msg_vector))
@@ -91,13 +90,11 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian})
         t_vector[i] = sign(msg.period) / sqrt(msg.var)
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
-        # β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
-        β = max(β, 1 / sqrt(msg.var * msg.period^2))
+        β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
+        # β = max(β, 1 / sqrt(msg.var * msg.period^2))
     end
 
-    # overwrite the last element of p_vector with the mean of the last message
-    p_vector[end] = msg_vector[end].mean
-    u_d = msg_vector[end].mean / msg_vector[end].var / Vinv
+    u_d = msg_vector[end].mean / msg_vector[end].var / sqrt(Vinv)
 
     # Normalize t_vector
     t_vector *= 1 / sqrt(Vinv)
@@ -107,7 +104,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian})
     R_vector = _calculate_R_square_diag(g_vector, f_vector)
 
     # initialize LSD input
-    return ListSphereDecodingInput(f_vector, g_vector, p_vector, t_vector, R_vector, 1 / Vinv, β, u_d)
+    return ListSphereDecodingInput(f_vector, g_vector, p_vector, t_vector, R_vector, 1 / Vinv, copy(β), copy(β), u_d)
 end
 
 
@@ -117,7 +114,7 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
         mean = 0.0
         var = inputs.Var
         weight = exp(-1 / 2 * D[i])
-        log_weight = -1 / 2 * D[i]
+        # log_weight = -1 / 2 * D[i]
 
         for j = 1:length(L[i])
             msg = msg_vector[j]
