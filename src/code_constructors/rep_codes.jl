@@ -36,7 +36,7 @@ end
 
 Construct the GKP-Repetition code with `d` modes. If `bit_flip` is true, then the protected qubit is encoded in the position basis, otherwise it is encoded in the momentum basis.
 """
-function gkp_rep_code(d::Int, bit_flip=false)
+function gkp_rep_code(d::Int, bit_flip=false,reduced=false)
     H = zeros(Float64, d - 1, d)
     for i in 1:(d-1)
         H[i, i] = 1
