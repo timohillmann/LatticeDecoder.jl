@@ -31,6 +31,21 @@ function build_H_mat(d::Int, n::Int, h::Vector{Float64}, P::AbstractMatrix)
     return H
 end
 
+function first_two_common_elements!(s::Vector{Int64}, a::AbstractArray, b::AbstractArray)
+    i = 1
+    @inbounds for a_i ∈ a
+        for b_i ∈ b
+            if a_i == b_i
+                s[i] = a_i
+                i += 1
+                if i == 2
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
 
 """
     loop_removal!(P::AbstractMatrix, d::Int, n::Int)
@@ -76,6 +91,68 @@ function loop_removal!(P::AbstractMatrix, d::Int, n::Int)
         if changed_perm != 0 # a permutation should be modified to remove loop
             i = rand(1:n) # choose a random integer 1 ≤ i ≤ n
             P[changed_perm, [c, i]] = P[changed_perm, [i, c]] # swap locations c and i in permutation
+            loopless_columns = 0 # reset loopless columns counter
+        else
+            # no loop war found at column c
+            loopless_columns += 1
+        end
+        c += 1
+        if c > n
+            c = 1
+        end
+        iters += 1
+        if iters == max_iters
+            return false
+            break
+        end
+    end
+    return true
+end
+
+
+
+
+
+
+function updated_loop_removal!(P::AbstractMatrix, d::Int, n::Int)
+    c = 1
+    loopless_columns = 0
+    max_iters = n
+    iters = 0
+    common_elems = Vector{Int64}(undef, 2)
+    while loopless_columns < n
+        changed_perm = 0
+        # check P for 2-loops
+        found_2_loop = false
+        @inbounds for i in 1:d
+            for j in (i+1):d
+                if @views P[i, c] == P[j, c]
+                    changed_perm = i
+                    found_2_loop = true
+                    break
+                end
+            end
+        end
+        @inbounds if !found_2_loop
+            for c0 in 1:n
+                if c0 != c
+                    # common_elems = intersect(P[:, c], P[:, c0])
+                    flag = first_two_common_elements!(common_elems, P[:, c], P[:, c0])
+                    if flag
+                        # A 4-loop was found at column c
+                        for i in 1:d
+                            if P[i, c] == common_elems[1]
+                                changed_perm = i
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        @inbounds if changed_perm != 0 # a permutation should be modified to remove loop
+            i = rand(1:n) # choose a random integer 1 ≤ i ≤ n
+            @views P[changed_perm, [c, i]] = P[changed_perm, [i, c]] # swap locations c and i in permutation
             loopless_columns = 0 # reset loopless columns counter
         else
             # no loop war found at column c

@@ -1,5 +1,7 @@
 module LatticeDecoder
 
+export stack_gkp_generator
+include("lattice_tools/concatenated_code_reduction.jl")
 # Code code_constructors
 export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code
 include("code_constructors/rep_codes.jl")

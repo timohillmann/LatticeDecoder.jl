@@ -9,6 +9,13 @@ struct QuantumCode
     QuantumCode(code::AbstractMatrix{Float64}, logical::AbstractMatrix{Float64}) = new(code, logical, symplectic_form(Int64(size(code)[2]/2)))
 end
 
+
+"""
+    is_logical_error(code::QuantumCode, error::Vector{Float64})
+
+Check if the error is a logical error for the given code.
+    Note: Currently only checks for a single logical operator.
+"""
 function is_logical_error(code::QuantumCode, error::Vector{Float64})
     # check if symplectic product is integer
     # return any(abs.(code.logical * code.J * error ).% 1 .> ACCEPTANCE_THRESHOLD)
@@ -21,7 +28,15 @@ function is_logical_error(code::QuantumCode, error::Vector{Float64})
 end
 
 
-function gkp_rep_code(d::Int, bit_flip=false, reduced=false)
+
+
+
+"""
+    gkp_rep_code(d::Int, bit_flip=false)
+
+Construct the GKP-Repetition code with `d` modes. If `bit_flip` is true, then the protected qubit is encoded in the position basis, otherwise it is encoded in the momentum basis.
+"""
+function gkp_rep_code(d::Int, bit_flip=false)
     H = zeros(Float64, d - 1, d)
     for i in 1:(d-1)
         H[i, i] = 1
@@ -43,6 +58,12 @@ function gkp_rep_code(d::Int, bit_flip=false, reduced=false)
 
 end
 
+
+"""
+    rep_code_logical(d::Int, bit_flip=false)
+
+Construct the protected logical operator for the GKP-Repetition code with `d` modes. If `bit_flip` is true, then the protected qubit is encoded in the position basis, otherwise it is encoded in the momentum basis.
+"""
 function rep_code_logical(d::Int, bit_flip=false)
     L = zeros(Float64, 1, 2 * d)
 

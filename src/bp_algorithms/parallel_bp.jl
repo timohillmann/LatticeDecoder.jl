@@ -1,4 +1,5 @@
 include("tanner_graph.jl")
+include("list_sphere_decoder_gaussians.jl")
 
 VarNodeAlloc = FourGaussianAlloc(gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5), gaussian(0.0, 0.5))
 
@@ -62,9 +63,7 @@ function check_node_messages!(tg::TannerGraph, cn_idx::Int64)
         idx = check_node.pos_in_var_neighbour[i]
         vn = tg.var_nodes[vn_idx]
         vn.messages[idx].mean = -(mean_sum - check_node.messages[i].mean * edge_weight) / edge_weight
-        # vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, LatticeDecoder.MIN_VAR)
         vn.messages[idx].var = max((var_sum - check_node.messages[i].var * edge_weight^2) / edge_weight^2, MIN_VAR)
-
         vn.messages[idx].period = edge_weight
     end
 end
@@ -77,9 +76,10 @@ end
 """
 function variable_node_iterations!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        # variable_node_messages!(tg, i)
-        variable_node_messages_allocationless!(tg, i)
+        # variable_node_messages!(tg, i) # Liu paper style
+        # variable_node_messages_allocationless!(tg, i)
         # mm_variable_node_messages!(tg, i)
+        lsd_variable_node_messages!(tg, i)
     end
 end
 
@@ -277,6 +277,6 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
 end
 
 
-function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
-    return Int64.(round.(H * bp_result))
-end
+# function hard_decision(bp_result::Vector{Float64}, H::AbstractArray)
+#     return Int64.(round.(H * bp_result))
+# end``

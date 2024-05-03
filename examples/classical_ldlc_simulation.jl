@@ -1,6 +1,7 @@
 using Distributed
 addprocs(8);
 @everywhere using LatticeDecoder
+# using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -11,23 +12,27 @@ H = classical_ldlc(d, n, true);
 
 tg = initialize_tanner_graph(H);
 
-σ = 0.15;
+σ = 0.20;
 
 b = zeros(Int64, size(H, 1));
-b[1] = 1;
-b[2] = 1;
+b[1] = 0;
+b[2] = 0;
 
 G = generator_matrix(H);
 y = encode(b, G);
 
 y .+= sample_error(σ, n);
 
-bp_result = run_belief_propagation!(tg, y, σ, 100);
+bp_result = run_belief_propagation!(tg, y, σ, 10);
 dec = hard_decision(bp_result, H);
 
 println("Number of symbol errors: ", count_symbol_errors(dec, b))
 
-function random_bitstring(n)
+# check that bp_results approximately fulfill the parity check equations
+println(round.(Int64, H * bp_result) .% 1)
+
+
+@everywhere function random_bitstring(n)
     return rand(0:1, n)
 end
 
@@ -44,6 +49,7 @@ end
     b = zeros(Int64, n)
     G = generator_matrix(H)
     tg = initialize_tanner_graph(H)
+    println("Running random encoding experiment with σ = ", σ, " with $(nworkers()) workers ")
     errors = @distributed (+) for i = 1:samples
         random_bitstring!(b, n)
         y = encode(b, G)
@@ -85,7 +91,6 @@ Compute the Agresti-Coull confidence interval for a binomial distribution.
 The default value of z is for a 95% confidence interval.
 To get the 99% confidence interval, use z=2.576.
 To get the 99.9% confidence interval, use z=3.291.
-At z = 
 
 """
 function agresti_coull_confidence_interval(p, n, z=1.96)
@@ -98,16 +103,17 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
 end
 
 using Plots
-samples = 5000;
-max_iter = 30;
+samples = 1000;
+max_iter = 50;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.8 * σ, 11)
+sigmas = range(σ, 0.85 * σ, 6)
 
-d = 5
-for n in [100, 1000]
+d = 7
+for n in [1000]
     H = classical_ldlc(d, n, true)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
+
     ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
     ribbon = agresti_coull_confidence_interval.(ber, samples * n)
     println(ber)
