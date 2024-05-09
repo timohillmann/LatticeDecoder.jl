@@ -269,14 +269,16 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, search_interval::Float64=1.5)
     # set the search interval
     tg.search_interval = search_interval
-
+    # println("initialize variable messages")
     # initilization
     initialize_messages!(tg, message, σ)
 
 
     # basic iteration
     for i in 1:max_iter
+        # println("starting check node iteration $i")
         check_node_iterations!(tg)
+        # println("starting th variable node iteration $i")
         variable_node_iterations!(tg)
     end
 

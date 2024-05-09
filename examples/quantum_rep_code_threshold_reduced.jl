@@ -2,9 +2,9 @@ using Distributed
 @everywhere using NPZ
 @everywhere using LaTeXStrings
 @everywhere using LLLplus
-if nprocs()<6
-    addprocs(6-nprocs())
-end
+# if nprocs()<6
+#     addprocs(6-nprocs())
+# end
 # @everywhere using LatticeDecoder
 @everywhere using LinearAlgebra
 using Plots
@@ -58,18 +58,19 @@ end
 
     # η = compute_eta(H, syndrome)
     η = -G * syndrome
+    dec = zeros(size(η))
 
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
-    η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
+    η = η - Mperp_LLL'*round.(inv(Mperp_LLL')*η)
 
-    # println(compute_syndrome(H,symplectic_form(n),η-y))
+    η = y
 
-    bp_result = run_belief_propagation!(tg, η, σ/1.5, 50); 
+    # println("is this a dual lattice point? ",round.(compute_syndrome(M,J,Mperp_LLL'*round.(inv(Mperp_LLL')*η)),digits=3))
+    # println(round.(compute_syndrome(M,J,η-y),digits=3))
+
+    bp_result = run_belief_propagation!(tg, η, σ/2, 50); 
     
     dec = hard_decision(bp_result, decision_H); 
-    
-    # zp = integer_solve(bottomSys, dec);
-    
     
     # println(mod.(Mh*J*bp_result,1))
     # println(mod.(Mh*J*(bp_result-η),1))
@@ -88,27 +89,28 @@ end
     
     # dec = round.(inv(Mperp_LLL)'*η) # COMMENT THIS UNLESS YOU WANT ONLY LOCAL SEARCH
     correction = η - G*dec
+    println("the decoded vector ",round.(Int64,sqrt(2) *G*dec).%2)
     # correction[n+1:end] .= 0 
     
-    current_best_norm = norm(correction)
-    integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
+    # current_best_norm = norm(correction)
+    # integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
 
-    # for j in 1:(2*n)
-    for j in 1:(size(integer_vectors)[1])
-        # for k in (-3):3
-            new_dec = dec[:]
-            # new_dec[j]= new_dec[j]+k
-            new_dec = new_dec + integer_vectors[j,:]
-            new_candidate =  η - G*new_dec
-            # new_candidate[n+1:end] .= 0
-            new_norm = norm(new_candidate)
-            if new_norm<current_best_norm
-                # println("found new best")
-                current_best_norm = new_norm
-                correction = new_candidate
-            end
-        # end
-    end
+    # # for j in 1:(2*n)
+    # for j in 1:(size(integer_vectors)[1])
+    #     # for k in (-3):3
+    #         new_dec = dec[:]
+    #         # new_dec[j]= new_dec[j]+k
+    #         new_dec = new_dec + integer_vectors[j,:]
+    #         new_candidate =  η - G*new_dec
+    #         # new_candidate[n+1:end] .= 0
+    #         new_norm = norm(new_candidate)
+    #         if new_norm<current_best_norm
+    #             # println("found new best")
+    #             current_best_norm = new_norm
+    #             correction = new_candidate
+    #         end
+    #     # end
+    # end
 
     residual = y - correction
     # println("residual: ",residual)
@@ -116,13 +118,13 @@ end
     # commutator = (residual' * J * logical)
     # success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
     success_condition = !is_logical_error(code,residual)
+    # success_condition = (norm(y)>=norm(correction))
 
     # residual = (y - correction)
     # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     # println("commutator: ",commutator)
     if success_condition
-    # if !is_logical_error(code, residual)
         # println("success: ",round.(residual,digits=3))
         return 1
     end
@@ -148,12 +150,12 @@ matching_results = Dict(
 th_pl = plot()
 
 
-samples = 20_000
+samples = 10
 
 # for n in [5]
 
 global jj = 1
-for n in [5,9,13]
+for n in [3,5,7]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -179,6 +181,8 @@ for n in [5,9,13]
     # columns of the matrix generate the lattice - we use row-convention)
     B, _ = LLLplus.lll(Mperp',0.95)
     Mperp_LLL = B'
+
+    # display(Mperp_LLL*J*M')
 
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(M))")

@@ -1,4 +1,4 @@
-const MIN_VAR::Float64 = 5e-6
+const MIN_VAR::Float64 = 5e-4
 
 abstract type Gaussian end
 

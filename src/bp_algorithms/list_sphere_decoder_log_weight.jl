@@ -14,9 +14,11 @@ function lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     for j = 1:length(vn.neighbours)
         cn_idx, _ = vn.neighbours[j]
-        idx = vn.pos_in_check_neighbour[j]
-        cn = tg.check_nodes[cn_idx]
-        _lsd_variable_node_message!(cn.messages[idx], vn, j)
+        if length(cn_idx)>1
+            idx = vn.pos_in_check_neighbour[j]
+            cn = tg.check_nodes[cn_idx]
+            _lsd_variable_node_message!(cn.messages[idx], vn, j)
+        end
     end
 end
 
@@ -27,6 +29,7 @@ end
 Updates the message of a variable node `vn` for a specific neighbour `nb_idx` using the List Sphere Decoding algorithm.
 """
 function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
+    println("computing message for variable node: ", vn)
     msg_vector = _collect_msg_vector(vn, nb_idx)
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)

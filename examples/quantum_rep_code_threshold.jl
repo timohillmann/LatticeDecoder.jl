@@ -21,8 +21,8 @@ if true
     # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
     # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
     @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
-
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
+    
+    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/list_sphere_decoder_log_weight.jl")
 end
 
 # include("../src/code_constructors/rep_codes.jl")
@@ -34,25 +34,25 @@ end
 
     # println("new error")
     y= sample_error(σ, 2*n);
-    for j in (n+1):(2*n)
-        y[j] = 0
-    end
+    # for j in (n+1):(2*n)
+    #     y[j] = 0
+    # end
     syndrome = compute_syndrome(H*J,J,y);
     # println(syndrome)
     
     z = integer_solve(bottomSys, syndrome)
     η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
 
-    println("before reducing to parallelepiped length of η = ",norm(η))
+    # println("before reducing to parallelepiped length of η = ",norm(η))
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
-    # η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
+    η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
     # println("after reducing to parallelepiped length of η = ",norm(η))
 
     
     # println("measured syndrome = ", round.(syndrome,digits=3))
     # println("η syndrome = ", round.(compute_syndrome(H*J,J,η),digits=3))
 
-    bp_result = run_belief_propagation!(tg, η, σ/1.5, 80);
+    bp_result = run_belief_propagation!(tg, η, σ/1.5, 50);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -62,14 +62,16 @@ end
     # println(mod.(Mh*J*(bp_result-η),1))
     
     
-    # println("error: ",y )
-    # println("eta: ",η )
+    # println("error: ", round.(y,digits = 3) )# UNCOMMENT FOR VERBOSE
+    # println("eta: ",round.(η,digits = 3) )# UNCOMMENT FOR VERBOSE
     # println("bp_result: ",bp_result )
     # println("dec: ",dec)
-    # println("potential correction: ",η - G*dec)
+    # if any(abs.(round.(syndrome-compute_syndrome(H*J,J,η),digits=3)).>0) # UNCOMMENT FOR VERBOSE
+    #     println("diff syndrome: ",round.(syndrome-compute_syndrome(H*J,J,η),digits=3))
+    # end
+    # println("potential correction: ",round.(η - G*dec,digits=3))# UNCOMMENT FOR VERBOSE
     
-    # println("residual: ",y - (η - bp_result))
-
+    
     # correction = compute_eta_overcomplete(Mh, Vt, syndrome, zp )
     # correction = H'*dec
     correction = η - G*dec
@@ -78,21 +80,21 @@ end
     # println("residual: ",residual)
     current_best_norm = norm(correction)
     integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
-
+    
     # for j in 1:(2*n)
     for j in 1:(size(integer_vectors)[1])
         # for k in (-3):3
-            new_dec = dec[:]
-            # new_dec[j]= new_dec[j]+k
-            new_dec = new_dec + integer_vectors[j,:]
-            new_candidate =  η - G*new_dec
-            # new_candidate[n+1:end] .= 0
-            new_norm = norm(new_candidate)
-            if new_norm<current_best_norm
-                # println("found new best")
-                current_best_norm = new_norm
-                correction = new_candidate
-            end
+        new_dec = dec[:]
+        # new_dec[j]= new_dec[j]+k
+        new_dec = new_dec + integer_vectors[j,:]
+        new_candidate =  η - G*new_dec
+        # new_candidate[n+1:end] .= 0
+        new_norm = norm(new_candidate)
+        if new_norm<current_best_norm
+            # println("found new best")
+            current_best_norm = new_norm
+            correction = new_candidate
+        end
         # end
     end
     #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
@@ -105,28 +107,32 @@ end
     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     # println("commutator: ",commutator)
     
+    # println("revised correction: ",round.(correction,digits=3)) # UNCOMMENT FOR VERBOSE
+
+    
     residual = y - correction
+    # println("residual: ",round.(residual,digits=3))# UNCOMMENT FOR VERBOSE
+
+    # println("error larger than correction? $(norm(y)>norm(correction))") # UNCOMMENT FOR VERBOSE
+
     # check if resitual error is a (possibly trivial) lgical operator
-    if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-9)
-        display(residual')
+    if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-6)
+        println("non-logical residual?",display(residual'))
     end
 
+    # display(round.(residual',digits=3))
+
     success_condition = !is_logical_error(code,residual)
+    # success_condition = (norm(y)>=norm(correction))
     if success_condition
-        # if !is_logical_error(code, residual)
-        # println("diff syndrome: ",round.(syndrome-compute_syndrome(H*J,J,correction),digits=3))
-        println("success!")
-        println("\n")
+        # println("success!")# UNCOMMENT FOR VERBOSE
+        # println("\n")# UNCOMMENT FOR VERBOSE
         return 1
-        # else
-    #     # if !is_logical_error(code, residual)
-    #         return 1
-    #     end
     end
     # println("error: $(round.(y,digits=4))");
     # println("correction: $(round.(correction,digits=4))");
     # println("failed with residual:  $(round.(residual,digits=4))\n")
-    println("\n")
+    # println("\n")# UNCOMMENT FOR VERBOSE
     return 0
 end
 
@@ -143,13 +149,13 @@ matching_results = Dict(
 
 
 
-# th_pl = plot(yscale=:log10,yticks=[10^x for x in  [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
+th_pl = plot(yscale=:log10,yticks=[10^x for x in  [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
 th_pl = plot()
 
 samples = 10
 
 global jj = 1
-for n in [3,5]
+for n in [3]
 # for n in [3,9,15]
     println("doing n = $n")
     # println(n)
@@ -160,14 +166,14 @@ for n in [3,5]
     # initialize code
     code = GKP_Rep_Code(n)
     logical = vec(code.logical')
-    println("logical: ", round.(logical',digits=3),"\n")
+    # println("logical: ", round.(logical',digits=3),"\n")
 
     # Initialize Tanner graph
     # M is the GKP generator, 
     M = code.code;
-    println("M: \n")
-    display(round.(M,digits = 4))
-    println("\n")
+    # println("M: \n")
+    # display(round.(M,digits = 4))
+    # println("\n")
     # H is the matrix used to c, while in factonstruct the Tanner graph for BP
     H = -M * J
 
@@ -176,13 +182,15 @@ for n in [3,5]
     Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
     
     # we use the Hermite reduced Mh to define the generator of the dual lattice
-    Mperp = inv(J*Mh')
+    Mperp = -inv(J*Mh')
+
     # and we LLL reduce it 
     # (note that LLLPlus uses the column-convention: 
     # columns of the matrix generate the lattice - we use row-convention)
-    B, _ = LLLplus.lll(Mperp',0.95)
+    B, _ = LLLplus.lll(Mperp',0.98)
     Mperp_LLL = B'
-    
+
+    display(Mperp_LLL)
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(Mh))")
     
@@ -201,8 +209,8 @@ for n in [3,5]
     
     # values for the noise strength (linear scale, lattice units)
     # sigmas = collect(0.2:0.05:0.55)
-    # sigmas = collect(0.5:0.1:2) ./sqrt(2*pi)
-    sigmas = [0.55]
+    sigmas = collect(0.5:0.1:2) ./sqrt(2*pi)
+    # sigmas = [0.55]
     
     failure_rates = Vector{Float64}(undef, length(sigmas))
     
