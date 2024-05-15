@@ -12,23 +12,21 @@ using Plots
 
 
 if true
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/overcomplete_syndrome.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/lattice_tools/overcomplete_syndrome.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/code_constructors/rep_codes.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/code_constructors/rep_codes.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/utilities/utilities.jl")
 
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/concatenated_code_reduction.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/../src/lattice_tools/concatenated_code_reduction.jl")
 
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
-    # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/gaussians.jl")
+    # include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/gaussians_log_weights_OLD.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/parallel_bp.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/parallel_bp_log_weight.jl")
 
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/tanner_graph.jl")
 end
-
-# include("../src/code_constructors/rep_codes.jl")
 
 @everywhere function greedy_reduction(pcm::AbstractMatrix)
     inds = [1]
@@ -52,6 +50,7 @@ end
     # println("new error")
     y= sample_error(σ, 2*n);
     y[(n+1):end].=0
+
     M = H*J
     # syndrome = compute_syndrome(M,J,y);
     syndrome = M*J*y
@@ -61,7 +60,9 @@ end
     # println(syndrome)
 
     # η = compute_eta(H, syndrome)
-    η = Vector(inv(M*J) * syndrome)
+    # η = Vector(inv(M*J) * syndrome)
+
+    η = y
 
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
     # η = η - Mperp_LLL'*round.(inv(Mperp_LLL')*η)
@@ -69,7 +70,7 @@ end
     # println("is this a dual lattice point? ",round.(compute_syndrome(M,J,Mperp_LLL'*round.(inv(Mperp_LLL')*η)),digits=3))
     # println(round.(compute_syndrome(M,J,η-y),digits=3))
 
-    bp_result = run_belief_propagation!(tg, η, σ/sqrt(2), 40); 
+    bp_result = run_belief_propagation!(tg, η, 10*σ, 80); 
     
     # dec = hard_decision(bp_result, decision_H); 
     dec = round.(inv(decision_H)*bp_result)
@@ -157,7 +158,7 @@ samples = 10_000
 # for n in [5]
 
 global jj = 1
-for n in [3,7]
+for n in [3,5,7]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -169,7 +170,6 @@ for n in [3,7]
     logical = vec(code.logical')
     display(logical')
 
-    # Initialize Tanner graph
     # M is the GKP generator, 
     M = code.code
     # display(M)

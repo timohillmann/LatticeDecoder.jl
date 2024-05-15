@@ -11,21 +11,19 @@ using Distributed
 
 
 if true
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/lattice_tools/overcomplete_syndrome.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/lattice_tools/overcomplete_syndrome.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/code_constructors/rep_codes.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/code_constructors/rep_codes.jl")
 
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/utilities/utilities.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/utilities/utilities.jl")
 
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians.jl")
-    # include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/gaussians_log_weights_OLD.jl")
-    # @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/parallel_bp_log_weight.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/gaussians.jl")
+    # include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/gaussians_log_weights_OLD.jl")
+    # @everywhere include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/parallel_bp.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/parallel_bp_log_weight.jl")
     
-    @everywhere include("/home/frarzani/Documents/QAT/research/LatticeDecoder.jl/src/bp_algorithms/list_sphere_decoder_log_weight.jl")
+    @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/list_sphere_decoder_log_weight.jl")
 end
-
-# include("../src/code_constructors/rep_codes.jl")
 
 
 @everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mh, Vt, bottomSys, Mperp_LLL::AbstractMatrix)
@@ -34,25 +32,24 @@ end
 
     # println("new error")
     y= sample_error(σ, 2*n);
-    # for j in (n+1):(2*n)
-    #     y[j] = 0
-    # end
-    syndrome = compute_syndrome(H*J,J,y);
+    y[(n+1):end].=0
+
+    # syndrome = compute_syndrome(H*J,J,y);
     # println(syndrome)
     
-    z = integer_solve(bottomSys, syndrome)
-    η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
-
+    # z = integer_solve(bottomSys, syndrome)
+    # η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
+    η = y
     # println("before reducing to parallelepiped length of η = ",norm(η))
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
-    η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
+    # η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
     # println("after reducing to parallelepiped length of η = ",norm(η))
 
     
     # println("measured syndrome = ", round.(syndrome,digits=3))
     # println("η syndrome = ", round.(compute_syndrome(H*J,J,η),digits=3))
 
-    bp_result = run_belief_propagation!(tg, η, σ/1.5, 50);
+    bp_result = run_belief_propagation!(tg, η, 20*σ, 80);
     
     dec = hard_decision(bp_result, decision_H);
     # zp = integer_solve(bottomSys, dec);
@@ -116,9 +113,9 @@ end
     # println("error larger than correction? $(norm(y)>norm(correction))") # UNCOMMENT FOR VERBOSE
 
     # check if resitual error is a (possibly trivial) lgical operator
-    if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-6)
-        println("non-logical residual?",display(residual'))
-    end
+    # if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-6)
+    #     println("non-logical residual?",display(residual'))
+    # end
 
     # display(round.(residual',digits=3))
 
@@ -152,10 +149,10 @@ matching_results = Dict(
 th_pl = plot(yscale=:log10,yticks=[10^x for x in  [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
 th_pl = plot()
 
-samples = 10
+samples = 100
 
 global jj = 1
-for n in [3]
+for n in [3,7]
 # for n in [3,9,15]
     println("doing n = $n")
     # println(n)
@@ -182,7 +179,7 @@ for n in [3]
     Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
     
     # we use the Hermite reduced Mh to define the generator of the dual lattice
-    Mperp = -inv(J*Mh')
+    Mperp = inv(J*Mh')
 
     # and we LLL reduce it 
     # (note that LLLPlus uses the column-convention: 
@@ -190,7 +187,7 @@ for n in [3]
     B, _ = LLLplus.lll(Mperp',0.98)
     Mperp_LLL = B'
 
-    display(Mperp_LLL)
+    # display(Mperp_LLL)
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(Mh))")
     
@@ -200,12 +197,17 @@ for n in [3]
     # the decision_H from an invertible matrix so that we also 
     # can calculate the generator matrix for the classical code generation
     decision_H = -Mh * J
+    B, _ = LLLplus.lll(decision_H',0.98)
+    decision_H = B'
     
     
     
     # the generator used in the classical algorithm to compute BP solution
     G = inv(decision_H)
-    
+    B, _ = LLLplus.lll(G',0.98)
+    G = B'
+
+    display(round.(Mh*J*G', digits = 4))
     
     # values for the noise strength (linear scale, lattice units)
     # sigmas = collect(0.2:0.05:0.55)
