@@ -1,5 +1,6 @@
 using LinearAlgebra
 using NormalForms
+using LLLplus
 
 struct BottomSystem
     Vb::Matrix{Int64}
@@ -14,7 +15,7 @@ Prepares the syndrome matrix for the overcomplete syndrome decoding algorithm. T
 """
 function overcomplete_syndrome_preperation(M::Matrix{Int64})
     Mh, U = hnfr(M)
-
+    
     # reduce Mh to non-zero rows
     Mh = Mh[1:size(Mh, 2), :]
 

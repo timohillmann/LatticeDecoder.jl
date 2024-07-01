@@ -191,7 +191,7 @@ function classical_ldlc(d::Int, n::Int, weights::Vector{Float64}, normalize::Boo
 
         converged = loop_removal!(P, d, n)
         counter += 1
-        if counter == 10
+        if counter == 1000
             break
         end
     end

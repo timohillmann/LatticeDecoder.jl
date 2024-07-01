@@ -62,7 +62,8 @@ end
     # η = compute_eta(H, syndrome)
     # η = Vector(inv(M*J) * syndrome)
 
-    η = y
+    η = y[:]
+    # y[1:n] .+= [1/sqrt(2) for j in 1:n]
 
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
     # η = η - Mperp_LLL'*round.(inv(Mperp_LLL')*η)
@@ -71,6 +72,7 @@ end
     # println(round.(compute_syndrome(M,J,η-y),digits=3))
 
     bp_result = run_belief_propagation!(tg, η, 10*σ, 80); 
+    # bp_result = η
     
     # dec = hard_decision(bp_result, decision_H); 
     dec = round.(inv(decision_H)*bp_result)
@@ -95,25 +97,25 @@ end
     # println("the decoded vector ",round.(Int64,sqrt(2) *G*dec).%2)
     correction[n+1:end] .= 0 
     
-    current_best_norm = norm(correction)
-    integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
+    # current_best_norm = norm(correction)
+    # integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
 
-    # for j in 1:(2*n)
-    for j in 1:(size(integer_vectors)[1])
-        # for k in (-3):3
-            new_dec = dec[:]
-            # new_dec[j]= new_dec[j]+k
-            new_dec = new_dec + integer_vectors[j,:]
-            new_candidate =  η - G*new_dec
-            # new_candidate[n+1:end] .= 0
-            new_norm = norm(new_candidate)
-            if new_norm<current_best_norm
-                # println("found new best")
-                current_best_norm = new_norm
-                correction = new_candidate
-            end
-        # end
-    end
+    # # for j in 1:(2*n)
+    # for j in 1:(size(integer_vectors)[1])
+    #     # for k in (-3):3
+    #         new_dec = dec[:]
+    #         # new_dec[j]= new_dec[j]+k
+    #         new_dec = new_dec + integer_vectors[j,:]
+    #         new_candidate =  η - G*new_dec
+    #         # new_candidate[n+1:end] .= 0
+    #         new_norm = norm(new_candidate)
+    #         if new_norm<current_best_norm
+    #             # println("found new best")
+    #             current_best_norm = new_norm
+    #             correction = new_candidate
+    #         end
+    #     # end
+    # end
 
     residual = y - correction
     # println("residual: ",residual)
@@ -153,7 +155,7 @@ matching_results = Dict(
 th_pl = plot()
 
 
-samples = 10_000
+samples = 1_000
 
 # for n in [5]
 
