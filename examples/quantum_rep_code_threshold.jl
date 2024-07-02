@@ -1,5 +1,5 @@
 using Distributed
-@everywhere using LaTeXStrings
+# @everywhere using LaTeXStrings
 # if nprocs()<6
 #     addprocs(6-nprocs())
 # end
@@ -7,36 +7,36 @@ using Distributed
 @everywhere using LinearAlgebra
 @everywhere using Plots
 # using LatticeAlgorithms
-@everywhere using LLLplus
+# @everywhere using LLLplus
 
 
 if true
-    @everywhere include(realpath(dirname(@__FILE__))*"/../src/lattice_tools/overcomplete_syndrome.jl")
+    @everywhere include(realpath(dirname(@__FILE__)) * "/../src/lattice_tools/overcomplete_syndrome.jl")
 
-    @everywhere include(realpath(dirname(@__FILE__))*"/../src/code_constructors/rep_codes.jl")
+    @everywhere include(realpath(dirname(@__FILE__)) * "/../src/code_constructors/rep_codes.jl")
 
-    @everywhere include(realpath(dirname(@__FILE__))*"/../src/utilities/utilities.jl")
+    @everywhere include(realpath(dirname(@__FILE__)) * "/../src/utilities/utilities.jl")
 
     # @everywhere include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/gaussians.jl")
     # include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/gaussians_log_weights_OLD.jl")
     # @everywhere include(realpath(dirname(@__FILE__))*"/src/bp_algorithms/parallel_bp.jl")
-    @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/parallel_bp_log_weight.jl")
-    
-    @everywhere include(realpath(dirname(@__FILE__))*"/../src/bp_algorithms/list_sphere_decoder_log_weight.jl")
+    @everywhere include(realpath(dirname(@__FILE__)) * "/../src/bp_algorithms/parallel_bp_log_weight.jl")
+
+    @everywhere include(realpath(dirname(@__FILE__)) * "/../src/bp_algorithms/list_sphere_decoder_log_weight.jl")
 end
 
 
-@everywhere function sample_and_decode(code::QuantumCode,H::AbstractMatrix,J::AbstractMatrix,G::AbstractMatrix, decision_H::AbstractMatrix,logical::AbstractVector,σ::Float64,n::Int64, Mh, Vt, bottomSys, Mperp_LLL::AbstractMatrix)
+@everywhere function sample_and_decode(code::QuantumCode, H::AbstractMatrix, J::AbstractMatrix, G::AbstractMatrix, decision_H::AbstractMatrix, logical::AbstractVector, σ::Float64, n::Int64, Mh, Vt, bottomSys, Mperp_LLL::AbstractMatrix)
     # tg = initialize_tanner_graph(code);
-    tg = initialize_tanner_graph(H);
+    tg = initialize_tanner_graph(H)
 
     # println("new error")
-    y= sample_error(σ, 2*n);
-    y[(n+1):end].=0
+    y = sample_error(σ, 2 * n)
+    y[(n+1):end] .= 0
 
     # syndrome = compute_syndrome(H*J,J,y);
     # println(syndrome)
-    
+
     # z = integer_solve(bottomSys, syndrome)
     # η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
     η = y
@@ -45,20 +45,21 @@ end
     # η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
     # println("after reducing to parallelepiped length of η = ",norm(η))
 
-    
+
     # println("measured syndrome = ", round.(syndrome,digits=3))
     # println("η syndrome = ", round.(compute_syndrome(H*J,J,η),digits=3))
 
-    bp_result = run_belief_propagation!(tg, η, 20*σ, 80);
-    
-    dec = hard_decision(bp_result, decision_H);
+    tg.schedule = collect(1:tg.nv)
+    bp_result = run_serial_belief_propagation!(tg, η, σ, 2)
+
+    dec = hard_decision(bp_result, decision_H)
     # zp = integer_solve(bottomSys, dec);
-    
-    
+
+
     # println(mod.(Mh*J*bp_result,1))
     # println(mod.(Mh*J*(bp_result-η),1))
-    
-    
+
+
     # println("error: ", round.(y,digits = 3) )# UNCOMMENT FOR VERBOSE
     # println("eta: ",round.(η,digits = 3) )# UNCOMMENT FOR VERBOSE
     # println("bp_result: ",bp_result )
@@ -67,33 +68,33 @@ end
     #     println("diff syndrome: ",round.(syndrome-compute_syndrome(H*J,J,η),digits=3))
     # end
     # println("potential correction: ",round.(η - G*dec,digits=3))# UNCOMMENT FOR VERBOSE
-    
-    
+
+
     # correction = compute_eta_overcomplete(Mh, Vt, syndrome, zp )
     # correction = H'*dec
-    correction = η - G*dec
-    
-    
+    correction = η - G * dec
+
+
     # println("residual: ",residual)
-    current_best_norm = norm(correction)
-    integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
-    
-    # for j in 1:(2*n)
-    for j in 1:(size(integer_vectors)[1])
-        # for k in (-3):3
-        new_dec = dec[:]
-        # new_dec[j]= new_dec[j]+k
-        new_dec = new_dec + integer_vectors[j,:]
-        new_candidate =  η - G*new_dec
-        # new_candidate[n+1:end] .= 0
-        new_norm = norm(new_candidate)
-        if new_norm<current_best_norm
-            # println("found new best")
-            current_best_norm = new_norm
-            correction = new_candidate
-        end
-        # end
-    end
+    # current_best_norm = norm(correction)
+    # integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
+
+    # # for j in 1:(2*n)
+    # for j in 1:(size(integer_vectors)[1])
+    #     # for k in (-3):3
+    #     new_dec = dec[:]
+    #     # new_dec[j]= new_dec[j]+k
+    #     new_dec = new_dec + integer_vectors[j,:]
+    #     new_candidate =  η - G*new_dec
+    #     # new_candidate[n+1:end] .= 0
+    #     new_norm = norm(new_candidate)
+    #     if new_norm<current_best_norm
+    #         # println("found new best")
+    #         current_best_norm = new_norm
+    #         correction = new_candidate
+    #     end
+    #     # end
+    # end
     #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     #     commutator = ((y - correction )' * J * logical)
     #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
@@ -103,10 +104,10 @@ end
     # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     # println("commutator: ",commutator)
-    
+
     # println("revised correction: ",round.(correction,digits=3)) # UNCOMMENT FOR VERBOSE
 
-    
+
     residual = y - correction
     # println("residual: ",round.(residual,digits=3))# UNCOMMENT FOR VERBOSE
 
@@ -119,7 +120,7 @@ end
 
     # display(round.(residual',digits=3))
 
-    success_condition = !is_logical_error(code,residual)
+    success_condition = !is_logical_error(code, residual)
     # success_condition = (norm(y)>=norm(correction))
     if success_condition
         # println("success!")# UNCOMMENT FOR VERBOSE
@@ -146,14 +147,14 @@ matching_results = Dict(
 
 
 
-th_pl = plot(yscale=:log10,yticks=[10^x for x in  [-5,-4,-3,-2,-2.25,-2,-1.75, -1.5,-1.25,-1,-0.75,-0.5,-0.25]],ylims=(10^(-5),10^(-0.25)))
+th_pl = plot(yscale=:log10, yticks=[10^x for x in [-5, -4, -3, -2, -2.25, -2, -1.75, -1.5, -1.25, -1, -0.75, -0.5, -0.25]], ylims=(10^(-5), 10^(-0.25)))
 th_pl = plot()
 
 samples = 100
 
 global jj = 1
-for n in [3,7]
-# for n in [3,9,15]
+for n in [3, 7]
+    # for n in [3,9,15]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -167,7 +168,7 @@ for n in [3,7]
 
     # Initialize Tanner graph
     # M is the GKP generator, 
-    M = code.code;
+    M = code.code
     # println("M: \n")
     # display(round.(M,digits = 4))
     # println("\n")
@@ -176,76 +177,76 @@ for n in [3,7]
 
     # we prepare the system to compute an error candidate compatible
     # with the overcomplete syndrome obtained from measuring stabilizers in the rows of M
-    Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
-    
+    # Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
+
     # we use the Hermite reduced Mh to define the generator of the dual lattice
-    Mperp = inv(J*Mh')
+    Mperp = inv(J * M')
 
     # and we LLL reduce it 
     # (note that LLLPlus uses the column-convention: 
     # columns of the matrix generate the lattice - we use row-convention)
-    B, _ = LLLplus.lll(Mperp',0.98)
-    Mperp_LLL = B'
+    # B, _ = LLLplus.lll(Mperp', 0.98)
+    # Mperp_LLL = B'
 
     # display(Mperp_LLL)
     # we can check that the determinant of the generator gives the correct logical dimension
     # println("determinant of reduced generator = $(det(Mh))")
-    
-    
-    
+
+
+
     # in the case of an overcomplete syndrome we need to calculate
     # the decision_H from an invertible matrix so that we also 
     # can calculate the generator matrix for the classical code generation
-    decision_H = -Mh * J
-    B, _ = LLLplus.lll(decision_H',0.98)
-    decision_H = B'
-    
-    
-    
+    decision_H = -M * J
+    # B, _ = LLLplus.lll(decision_H', 0.98)
+    # decision_H = H
+
+
+
     # the generator used in the classical algorithm to compute BP solution
     G = inv(decision_H)
-    B, _ = LLLplus.lll(G',0.98)
-    G = B'
+    # B, _ = LLLplus.lll(G', 0.98)
+    # G = B'
 
-    display(round.(Mh*J*G', digits = 4))
-    
+    # display(round.(Mh * J * G', digits=4))
+
     # values for the noise strength (linear scale, lattice units)
     # sigmas = collect(0.2:0.05:0.55)
-    sigmas = collect(0.5:0.1:2) ./sqrt(2*pi)
+    sigmas = collect(0.5:0.1:2) ./ sqrt(2 * pi)
     # sigmas = [0.55]
-    
+
     failure_rates = Vector{Float64}(undef, length(sigmas))
-    
+
     # @everywhere tg = initialize_tanner_graph(H);
     for l in 1:length(sigmas)
 
         σ = sigmas[l]
 
-        
+
         # success = @distributed (+) for i in 1:samples
         #     sample_and_decode(code,H,J,G, decision_H,logical,σ, n, Mh, Vt, bottomSys,Mperp_LLL)
         #     # println("decision H is now of size $(size(decision_H))")
         # end
-        
+
         success = 0
         for i in 1:samples
-            success += sample_and_decode(code,H,J,G, decision_H,logical,σ, n, Mh, Vt, bottomSys,Mperp_LLL)
+            success += sample_and_decode(code, H, J, G, decision_H, logical, σ, n, Mh, Vt, bottomSys, Mperp_LLL)
         end
 
-        fr =1-success/samples
+        fr = 1 - success / samples
         println("σ = $σ; failure rate: ", fr)
         failure_rates[l] = fr
     end
 
-    plot!(th_pl,sigmas,failure_rates, label="n = $n",markershape=:circle)
+    plot!(th_pl, sigmas, failure_rates, label="n = $n", markershape=:circle)
 
     # Access the series objects
     series = th_pl.series_list
 
     # Get the color of the second series
     color1 = series[jj][:seriescolor]
-    plot!(th_pl,sigmas,matching_results["$n"], label="MWPM, n = $n",markershape=:xcross,color = color1)
-    global jj+=2
+    plot!(th_pl, sigmas, matching_results["$n"], label="MWPM, n = $n", markershape=:xcross, color=color1)
+    global jj += 2
 end
 
 title!("Decoder failure probability (overcomplete)")

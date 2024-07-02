@@ -81,7 +81,7 @@ Returns the indices of the linearly independent rows of the matrix `A`.
     
     """
 function linear_independent_rows(A::zzModMatrix)
-    n,m = size(A)
+    n, m = size(A)
 
     inds = [n]
     c_rank = 1
@@ -90,7 +90,7 @@ function linear_independent_rows(A::zzModMatrix)
         _inds = copy(inds)
         push!(_inds, i)
 
-        if rank(A[ _inds,:]) > c_rank
+        if rank(A[_inds, :]) > c_rank
             push!(inds, i)
             c_rank += 1
         end
@@ -223,134 +223,3 @@ function load_toric3d_hz()
     return matrix(Z2, hz)
 end
 
-
-# Hx = load_toric3d_hx();
-# Hz = load_toric3d_hz();
-
-# Hx = dual_hamming_code();
-# Hz = dual_hamming_code();
-
-# M_q = 1 / sqrt(2) * stack_gkp_generator(Hx);
-# M_p = 1 / sqrt(2) * stack_gkp_generator(Hz);
-
-# num_logicals = 1
-
-# @assert num_logicals ≈ log2(abs(det(M_q))) + log2(abs(det(M_p)))
-
-# println(log2(abs(det(M_q))) + log2(abs(det(M_p))))
-# println(log2(abs(det(M_q))))
-# println(log2(abs(det(M_p))))
-
-###############################
-
-# Hx =  load_lp_code_Hx(90) ;
-
-# rank(Hx)
-# size(Hx)
-# full_rank = linear_independent_rows(Hx)
-# println(Hx)
-# reduced_Hx = Hx[full_rank,:];
-
-# rank(reduced_Hx)
-# M_q = 1 / sqrt(2) * stack_gkp_generator(Hx);
-
-# Hz = get_full_rank_pcm(load_lp_code_Hz(90));
-
-# rank(Hz)
-# size(Hz)
-# # full_rank = linear_independent_rows(Hz)
-
-# M_p = 1 / sqrt(2) * stack_gkp_generator(Hz);
-
-
-# println(maximum(M_q*M_p'-round.(M_q*M_p')))
-
-# println(log2(abs(det(M_q))) + log2(abs(det(M_p))))
-
-
-
-# println(round(abs(det(BigFloat.(M_q))*det(BigFloat.(M_p)))))
-# println(det(round.(M_q*M_p')))
-
-
-# using Primes
-
-# Primes.factor(BigInt.(round(det(M_q*M_p'))))
-
-
-# unique(M_q*M_p')
-# # num_logicals = 80
-
-# using LatticeAlgorithms
-
-# function interleave_matrices(a::Matrix{T}, b::Matrix{T}) where T
-#     size(a, 1) == size(b, 1) || error("number of rows mismatch")
-#     c = Matrix{T}(undef, 2*size(a, 1), size(a, 2))
-#     i = 0
-#     for (row_a, row_b) in zip(eachrow(a), eachrow(b))
-#         c[i += 1, :] .= row_a
-#         c[i += 1, :] .= row_b
-#     end
-#     return c
-# end
-
-# block_Mq = hcat(M_q,zeros(size(M_q)))
-# block_Mp = hcat(zeros(size(M_q)), M_p)
-
-# M_other_convention = interleave_matrices(block_Mq,block_Mp)
-
-# J_other_convention = kron(Matrix{Float64}(I,size(M_q)),Matrix([0 1;-1 0]))
-
-# A_other_convention = M_other_convention*J_other_convention*M_other_convention'
-
-# J =  kron(Matrix([0 1;-1 0]),Matrix{Float64}(I,size(M_q)))
-# unique(J)
-
-# M_matrix = vcat(block_Mq,block_Mp)
-
-# A = M_matrix*J*M_matrix'
-
-# unique(A)
-# println(unique(M_q))
-
-# println("beginning")
-# non_in_lattice = 0
-# for j in 1:size(M_q)[1]
-#     vec =  zeros(Float64, size(M_q)[1])
-#     vec[j] = sqrt(2)
-#     coords = inv(M_q')*vec
-#     int_deviation = abs.(coords-round.(coords))
-#     if maximum(int_deviation)> 1e-10
-#         non_in_lattice+=1
-#         println("j = ", j, " deviation = ",maximum(int_deviation))
-#         println("deviating coordinates: ",length(int_deviation[int_deviation .> 1e-10]))
-#         println("overlapping coordinates: ",length(coords[coords .> 1e-10]))
-#     end
-# end
-# println("not in lattice: ",non_in_lattice)
-# println(size(M_q)[1])
-
-# using NormalForms
-# using MatInt
-
-# outMq = BigInt.(sqrt(2)* copy(M_q))
-# for j in 1:size(M_q)[1]
-#     vec =  zeros(Int64, size(M_q)[1])
-#     vec[j] = 2
-#     coords = inv(M_q')*vec
-#     int_deviation = abs.(coords-round.(coords))
-#     if maximum(int_deviation)> 1e-10
-#         println(size(vcat(outMq,vec')))
-#         # outMq = hnfr!(vcat(outMq,vec'))
-#         overlap_indices = findall(x->x>1e-10, coords)
-#         smaller_mat = vcat(outMq[overlap_indices,:],vec')
-#         smaller_mat =  hermite(vcat(smaller_mat))[1:(end-1),:]
-#         outMq[overlap_indices,:] = smaller_mat
-#     end
-# end
-# outMq = Float64.(outMq) ./sqrt(2)
-
-# for j in 1:54
-#     vec = outMq[j,:]
-#     println(length(vec[vec .> 1e-10]))
-# end

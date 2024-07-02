@@ -1,5 +1,5 @@
 using Distributed
-addprocs(8);
+addprocs(6);
 @everywhere using LatticeDecoder
 # using LatticeDecoder
 
@@ -23,10 +23,14 @@ y = encode(b, G);
 
 y .+= sample_error(σ, n);
 
+serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10);
+serial_dec = hard_decision(serial_bp_result, H);
+
 bp_result = run_belief_propagation!(tg, y, σ, 10);
 dec = hard_decision(bp_result, H);
 
 println("Number of symbol errors: ", count_symbol_errors(dec, b))
+println("Number of symbol errors (serial): ", count_symbol_errors(serial_dec, b))
 
 # check that bp_results approximately fulfill the parity check equations
 println(round.(Int64, H * bp_result) .% 1)
@@ -54,7 +58,8 @@ end
         random_bitstring!(b, n)
         y = encode(b, G)
         y .+= sample_error(σ, n)
-        bp_result = run_belief_propagation!(tg, y, σ, max_iter)
+        # bp_result = run_belief_propagation!(tg, y, σ, max_iter)
+        bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter)
         dec = hard_decision(bp_result, H)
         count_symbol_errors(dec, b)
     end
@@ -105,11 +110,11 @@ end
 using Plots
 samples = 1000;
 max_iter = 50;
-σ = lattice_capacity_std()
-p = plot()
-sigmas = range(σ, 0.85 * σ, 6)
+σ = lattice_capacity_std();
+p = plot();
+sigmas = range(σ, 0.85 * σ, 6);
 
-d = 7
+d = 7;
 for n in [1000]
     H = classical_ldlc(d, n, true)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]

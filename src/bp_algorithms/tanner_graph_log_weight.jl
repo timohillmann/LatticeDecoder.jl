@@ -40,9 +40,10 @@ mutable struct TannerGraph
     nc::Int64
     bp_result::Vector{Float64}
     search_interval::Float64
+    schedule::Vector{Int64}
 
     function TannerGraph(var_nodes::Vector{VariableNode}, check_nodes::Vector{CheckNode}, var_node_to_posit::Dict{Int64,Int64})
-        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), 1.5)
+        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), 1.5, collect(1:length(var_nodes)))
     end
 
 end
