@@ -7,8 +7,8 @@ using Distributed
 @everywhere using LinearAlgebra
 @everywhere using Plots
 # using LatticeAlgorithms
-# @everywhere using LLLplus
-
+@everywhere using LLLplus
+@everywhere using LatticeDecoder
 
 if true
     @everywhere include(realpath(dirname(@__FILE__)) * "/../src/lattice_tools/overcomplete_syndrome.jl")
@@ -34,12 +34,12 @@ end
     y = sample_error(σ, 2 * n)
     y[(n+1):end] .= 0
 
-    # syndrome = compute_syndrome(H*J,J,y);
+    syndrome = compute_syndrome(H * J, J, y)
     # println(syndrome)
 
-    # z = integer_solve(bottomSys, syndrome)
-    # η = compute_eta_overcomplete(Mh, Vt, syndrome, z )
-    η = y
+    z = integer_solve(bottomSys, syndrome)
+    η = compute_eta_overcomplete(Mh, Vt, syndrome, z)
+    # η = y
     # println("before reducing to parallelepiped length of η = ",norm(η))
     # reduce the error candidate η to the centered parallelepiped of the dual lattice
     # η = η - Mperp_LLL'*round.(inv(Mperp_LLL)'*η) 
@@ -49,10 +49,10 @@ end
     # println("measured syndrome = ", round.(syndrome,digits=3))
     # println("η syndrome = ", round.(compute_syndrome(H*J,J,η),digits=3))
 
-    tg.schedule = collect(1:tg.nv)
-    bp_result = run_serial_belief_propagation!(tg, η, σ, 2)
+    bp_result = run_belief_propagation!(tg, η, σ / 2.5, 80)
 
-    dec = hard_decision(bp_result, decision_H)
+    # dec = hard_decision(bp_result, decision_H);
+    dec = round.(decision_H * bp_result)
     # zp = integer_solve(bottomSys, dec);
 
 
@@ -72,36 +72,32 @@ end
 
     # correction = compute_eta_overcomplete(Mh, Vt, syndrome, zp )
     # correction = H'*dec
+    # correction = η - G*dec
     correction = η - G * dec
 
+    residual = y - correction
+
+    raw_success = Int64(!is_logical_error(code, residual))
+
+    raw_sec = n - sum(isapprox(residual[1:n], y[1:n]))
 
     # println("residual: ",residual)
-    # current_best_norm = norm(correction)
-    # integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
+    current_best_norm = norm(correction)
 
-    # # for j in 1:(2*n)
-    # for j in 1:(size(integer_vectors)[1])
-    #     # for k in (-3):3
-    #     new_dec = dec[:]
-    #     # new_dec[j]= new_dec[j]+k
-    #     new_dec = new_dec + integer_vectors[j,:]
-    #     new_candidate =  η - G*new_dec
-    #     # new_candidate[n+1:end] .= 0
-    #     new_norm = norm(new_candidate)
-    #     if new_norm<current_best_norm
-    #         # println("found new best")
-    #         current_best_norm = new_norm
-    #         correction = new_candidate
-    #     end
-    #     # end
-    # end
-    #     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
+    for j in 1:(size(integer_vectors)[1])
+        new_dec = dec[:]
+        new_dec = new_dec + integer_vectors[j, :]
+        new_candidate = η - G * new_dec
+        # new_candidate[n+1:end] .= 0
+        new_norm = norm(new_candidate)
+        if new_norm < current_best_norm
+            # println("found new best")
+            current_best_norm = new_norm
+            correction = new_candidate
+        end
+    end
     #     commutator = ((y - correction )' * J * logical)
     #     success_condition = ( abs(commutator[1]-round(commutator[1])) < 1e-3)
-    #     # residual = y - correction
-    #     if success_condition
-    # residual = (y - correction)
-    # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
     # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
     # println("commutator: ",commutator)
 
@@ -110,10 +106,12 @@ end
 
     residual = y - correction
     # println("residual: ",round.(residual,digits=3))# UNCOMMENT FOR VERBOSE
+    # success_condition = (Int64(round(sum([2*x^2 for x in residual[1:n] ])))%2==0)
+    # success_condition = (norm(y[1:n] - correction[1:n]) <1e-3)
 
     # println("error larger than correction? $(norm(y)>norm(correction))") # UNCOMMENT FOR VERBOSE
 
-    # check if resitual error is a (possibly trivial) lgical operator
+    # check if residual error is a (possibly trivial) lgical operator
     # if (norm(Mh*J*residual - round.(Mh*J*residual))>1e-6)
     #     println("non-logical residual?",display(residual'))
     # end
@@ -121,17 +119,18 @@ end
     # display(round.(residual',digits=3))
 
     success_condition = !is_logical_error(code, residual)
-    # success_condition = (norm(y)>=norm(correction))
-    if success_condition
-        # println("success!")# UNCOMMENT FOR VERBOSE
-        # println("\n")# UNCOMMENT FOR VERBOSE
-        return 1
-    end
+    # success_condition = (norm(y)>=norm(correction[1:n]))
+    # if success_condition
+    #     # println("success!")# UNCOMMENT FOR VERBOSE
+    #     # println("\n")# UNCOMMENT FOR VERBOSE
+    #     return 1
+    # end
     # println("error: $(round.(y,digits=4))");
     # println("correction: $(round.(correction,digits=4))");
     # println("failed with residual:  $(round.(residual,digits=4))\n")
     # println("\n")# UNCOMMENT FOR VERBOSE
-    return 0
+    sec = n - sum(isapprox(residual[1:n], y[1:n]))
+    return success_condition, raw_success, sec, raw_sec
 end
 
 
@@ -150,11 +149,15 @@ matching_results = Dict(
 th_pl = plot(yscale=:log10, yticks=[10^x for x in [-5, -4, -3, -2, -2.25, -2, -1.75, -1.5, -1.25, -1, -0.75, -0.5, -0.25]], ylims=(10^(-5), 10^(-0.25)))
 th_pl = plot()
 
-samples = 100
+samples = 1000
+verbose = false
+
 
 global jj = 1
-for n in [3, 7]
-    # for n in [3,9,15]
+# for n in [3,9,15]
+for n in [3]
+    @everywhere n = $n
+    @everywhere integer_vectors = npzread("examples/local_search/integer_vectors_$n.npz")["arr_0"]
     println("doing n = $n")
     # println(n)
     J = symplectic_form(n)
@@ -166,12 +169,10 @@ for n in [3, 7]
     logical = vec(code.logical')
     # println("logical: ", round.(logical',digits=3),"\n")
 
-    # Initialize Tanner graph
     # M is the GKP generator, 
     M = code.code
-    # println("M: \n")
-    # display(round.(M,digits = 4))
-    # println("\n")
+
+
     # H is the matrix used to c, while in factonstruct the Tanner graph for BP
     H = -M * J
 
@@ -180,42 +181,56 @@ for n in [3, 7]
     # Mh, Vt, bottomSys = overcomplete_syndrome_preperation(M)
 
     # we use the Hermite reduced Mh to define the generator of the dual lattice
-    Mperp = inv(J * M')
+    Mperp = inv(J * Mh')
 
     # and we LLL reduce it 
     # (note that LLLPlus uses the column-convention: 
     # columns of the matrix generate the lattice - we use row-convention)
-    # B, _ = LLLplus.lll(Mperp', 0.98)
-    # Mperp_LLL = B'
-
-    # display(Mperp_LLL)
-    # we can check that the determinant of the generator gives the correct logical dimension
-    # println("determinant of reduced generator = $(det(Mh))")
-
+    # B, _ = LLLplus.lll(Mperp',0.98)
+    B, _ = LLLplus.hkz(Mperp',)
+    Mperp_LLL = B'
+    # we take this as generator for the LDLC algorithm, thus with column-convention
+    G = Mperp_LLL'
 
 
     # in the case of an overcomplete syndrome we need to calculate
     # the decision_H from an invertible matrix so that we also 
     # can calculate the generator matrix for the classical code generation
-    decision_H = -M * J
-    # B, _ = LLLplus.lll(decision_H', 0.98)
-    # decision_H = H
+    # decision_H = -Mh * J
+    decision_H = inv(G)
+    # we also LLL reduce this
+    # B, _ = LLLplus.lll(decision_H',0.98)
+    B, _ = LLLplus.hkz(decision_H')
+    decision_H = B'
 
 
 
     # the generator used in the classical algorithm to compute BP solution
-    G = inv(decision_H)
-    # B, _ = LLLplus.lll(G', 0.98)
+    # G = inv(decision_H)
+    # B, _ = LLLplus.lll(G',0.98)
     # G = B'
 
-    # display(round.(Mh * J * G', digits=4))
+    if verbose
+        println("the generator matrix:")
+        display(round.(M, digits=4))
+        println("the reduced dual generator:")
+        display(Mperp_LLL)
+        # we can check that the determinant of the generator gives the correct logical dimension
+        println("determinant of reduced generator = $(det(Mh))")
+        println("this should be integer if the Hermite reduced M and LLL reduced Mperp are compatible: ")
+        display(round.(Mh * J * G, digits=4))
+        println("this should be integer if the H and G for the classical BP algo are compatible: ")
+        display(round.(H * G, digits=4))
+    end
 
     # values for the noise strength (linear scale, lattice units)
     # sigmas = collect(0.2:0.05:0.55)
-    sigmas = collect(0.5:0.1:2) ./ sqrt(2 * pi)
-    # sigmas = [0.55]
+    # sigmas = collect(0.5:0.2:2) ./sqrt(2*pi)
+    sigmas = [0.55]
 
     failure_rates = Vector{Float64}(undef, length(sigmas))
+    raw_failure_rates = Vector{Float64}(undef, length(sigmas))
+
 
     # @everywhere tg = initialize_tanner_graph(H);
     for l in 1:length(sigmas)
@@ -227,26 +242,43 @@ for n in [3, 7]
         #     sample_and_decode(code,H,J,G, decision_H,logical,σ, n, Mh, Vt, bottomSys,Mperp_LLL)
         #     # println("decision H is now of size $(size(decision_H))")
         # end
-
+        raw_success = 0
         success = 0
+        raw_sec_counts = Vector{Int64}(undef, samples)
+        sec_counts = Vector{Int64}(undef, samples)
         for i in 1:samples
-            success += sample_and_decode(code, H, J, G, decision_H, logical, σ, n, Mh, Vt, bottomSys, Mperp_LLL)
+            success_condition, raw_success_condition, sec, raw_sec = sample_and_decode(code, H, J, G, decision_H, logical, σ, n, Mh, Vt, bottomSys, Mperp_LLL)
+            success += success_condition
+            raw_success += raw_success_condition
+            sec_counts[i] = sec
+            raw_sec_counts[i] = raw_sec
         end
+        println("raw SEC \n", raw_sec_counts)
+
+        raw_sec_hist = histogram(raw_sec_counts, xlims=(0, n), label="Data", xlabel="Value", ylabel="Count", title="SER, n=$n, σ=$σ", nbins=n)
+        display(raw_sec_hist)
+        readline()
+        # sec_hist = histogram(sec_counts)
+        # display(sec_hist)
 
         fr = 1 - success / samples
         println("σ = $σ; failure rate: ", fr)
         failure_rates[l] = fr
+        raw_failure_rates[l] = 1 - raw_success / samples
     end
 
     plot!(th_pl, sigmas, failure_rates, label="n = $n", markershape=:circle)
-
     # Access the series objects
     series = th_pl.series_list
 
     # Get the color of the second series
     color1 = series[jj][:seriescolor]
+
+    plot!(th_pl, sigmas, raw_failure_rates, label="n = $n, raw", markershape=:square, color=color1)
+
+
     plot!(th_pl, sigmas, matching_results["$n"], label="MWPM, n = $n", markershape=:xcross, color=color1)
-    global jj += 2
+    global jj += 3
 end
 
 title!("Decoder failure probability (overcomplete)")
@@ -255,7 +287,7 @@ ylabel!(L"$p_\mathrm{fail}$")
 # display(th_pl)
 # readline()
 
-savefig(th_pl, "repetition_code_overcomplete_thr_plot.pdf")
+# savefig(th_pl, "repetition_code_overcomplete_thr_plot.pdf")
 
 # size(bp_result')
 # size(code.logical')
