@@ -1,7 +1,7 @@
 using Distributed
 addprocs(8);
 @everywhere using LatticeDecoder
-# using LatticeDecoder
+using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -22,6 +22,9 @@ G = generator_matrix(H);
 y = encode(b, G);
 
 y .+= sample_error(σ, n);
+
+serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10, 0.0);
+serial_dec = hard_decision(serial_bp_result, H);
 
 bp_result = run_belief_propagation!(tg, y, σ, 10);
 dec = hard_decision(bp_result, H);

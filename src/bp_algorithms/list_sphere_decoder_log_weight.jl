@@ -28,6 +28,12 @@ Updates the message of a variable node `vn` for a specific neighbour `nb_idx` us
 """
 function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
     msg_vector = _collect_msg_vector(vn, nb_idx)
+    if length(msg_vector) == 1
+        # cn_message.mean = msg_vector[1].mean
+        # cn_message.var = MIN_VAR
+        # cn_message.period = msg_vector[1].period
+        return 1
+    end
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     if length(D) == 0
@@ -38,6 +44,22 @@ function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::Variab
     return length(D)
 end
 
+
+"""
+    _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+
+Performs the decision step using the List Sphere Decoding algorithm for a variable node `vn_idx` in the Tanner graph `tg`.
+"""
+function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+    # println("LSD Variable Node Decision")
+    vn = tg.var_nodes[vn_idx]
+    msg_vector = _collect_msg_vector(vn)
+    lsd_inputs = ListSphereDecodingInput(msg_vector)
+    L, D = simplified_lsd(lsd_inputs)
+    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+    moment_matching!(vn.message, candidate_gaussians)
+    bp_result[vn_idx] = vn.message.mean
+end
 
 """
     _collect_msg_vector(vn::VariableNode, j::Int64)
@@ -55,6 +77,17 @@ function _collect_msg_vector(vn::VariableNode, j::Int64)
     push!(msg_vector, vn.message)
     return msg_vector
 end
+
+function _collect_msg_vector(vn::VariableNode)
+    msg_vector = Vector{gaussian_log_weight}()
+    for i = 1:length(vn.messages)
+        push!(msg_vector, vn.messages[i])
+    end
+    push!(msg_vector, vn.message)
+    return msg_vector
+end
+
+_collect_msg_vector(vn::VariableNode, j::Nothing) = _collect_msg_vector(vn)
 
 
 """
@@ -124,3 +157,5 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
     end
     return candidate_gaussians
 end
+
+
