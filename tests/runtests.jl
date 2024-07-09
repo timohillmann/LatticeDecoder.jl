@@ -2,6 +2,7 @@ using Test
 include("test_gaussians.jl")
 include("test_code_reduction.jl")
 include("test_lsd_decoder.jl")
+include("test_lattice_osd.jl")
 
 # run test set
 @testset "gaussians.jl" begin
@@ -27,3 +28,21 @@ end;
     test_all_t_vectors(TC2)
     test_simplified_lsd(TC2)
 end;
+
+
+@testset "correct_number" begin
+    for n in 3:10
+        for w in 1:3
+            for order in [[0, 0, w], [0, w, 0], [w, 0, 0], [w, w - 1, 1]]
+                @test test_number_generated(n, order)
+            end
+        end
+    end
+end
+
+
+@testset "test_pauli_rep_correction" begin
+    for n in 3:2:19
+        test_pauli_rep_correction(n)
+    end
+end

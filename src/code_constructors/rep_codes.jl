@@ -68,9 +68,9 @@ function rep_code_logical(d::Int, bit_flip=false)
     L = zeros(Float64, 1, 2 * d)
 
     if bit_flip
-        L[1, 1:d] .= 1
-    else
         L[1, (d+1):end] .= 1
+    else
+        L[1, 1:d] .= 1
     end
 
     return L / sqrt(2)

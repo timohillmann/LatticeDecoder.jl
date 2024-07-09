@@ -6,6 +6,12 @@ include("lattice_tools/concatenated_code_reduction.jl")
 export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code
 include("code_constructors/rep_codes.jl")
 
+export GKP_Surface_Code
+include("code_constructors/surface_codes.jl")
+
+export lattice_statistics_decoding
+include("lattice_osd/lattice_statistics_decoding.jl")
+
 # BP tools
 export initialize_tanner_graph, run_belief_propagation!
 # include("bp_algorithms/parallel_bp.jl")
