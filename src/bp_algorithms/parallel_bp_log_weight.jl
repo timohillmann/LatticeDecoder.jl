@@ -82,8 +82,8 @@ function variable_node_iterations!(tg::TannerGraph)
         # variable_node_messages!(tg, i)
         # variable_node_messages_allocationless!(tg, i)
         # mm_variable_node_messages!(tg, i)
-        variable_node_messages_allocationless!(tg, i)
-        # lsd_variable_node_messages!(tg, i)
+        # variable_node_messages_allocationless!(tg, i)
+        lsd_variable_node_messages!(tg, i)
     end
 end
 
@@ -158,7 +158,8 @@ variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64) = variabl
 function decision_step(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
         # variable_node_decision!(tg.bp_result, tg, i)
-        variable_node_decision_allocationless!(tg.bp_result, tg, i)
+        # variable_node_decision_allocationless!(tg.bp_result, tg, i)
+        _lsd_variable_node_decision!(tg, i)
     end
 end
 
