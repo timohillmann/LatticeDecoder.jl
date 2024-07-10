@@ -1,7 +1,7 @@
 using Distributed
 addprocs(6);
 @everywhere using LatticeDecoder
-# using LatticeDecoder
+using LatticeDecoder
 
 # Parameters
 n = 256;
