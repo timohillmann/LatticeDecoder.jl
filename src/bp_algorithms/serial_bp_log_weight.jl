@@ -126,3 +126,5 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
 
     return tg.bp_result
 end
+
+run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64) = run_serial_belief_propagation!(tg, message, σ, max_iter, 0.0)
