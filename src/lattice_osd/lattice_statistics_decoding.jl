@@ -8,10 +8,30 @@ struct LatticeStatisticsDecoding
     G::AbstractMatrix{Float64}
     B::AbstractMatrix{Float64}
     candidates::Vector{Vector{Int64}}
-
-    LatticeStatisticsDecoding(order::Vector{Int64}, G::AbstractMatrix{Float64}) = new(order, G,
-        lll_basis_reduction(G), generate_candidates(size(G, 2), order))
+    basis::AbstractMatrix{Float64}
 end
+
+
+
+"""
+    LatticeStatisticsDecoding(order::Vector{Int64}, G::AbstractMatrix{Float64}, reduced::Bool = true)
+
+Create a new instance of the LatticeStatisticsDecoding algorithm. The algorithm is used to solve the lattice decoding problem. The algorithm uses the LLL basis reduction algorithm to reduce the basis of the lattice. The algorithm generates all possible candidates for the solution of the lattice decoding problem.
+"""
+function LatticeStatisticsDecoding(order::Vector{Int64}, G::AbstractMatrix{Float64}, reduced::Bool=true)
+    B = lll_basis_reduction(G)
+    candidates = generate_candidates(size(G, 2), order)
+
+    if reduced
+        basis = B
+    else
+        basis = G
+    end
+
+    return LatticeStatisticsDecoding(order, G, B, candidates, basis)
+
+end
+
 
 function lll_basis_reduction(G::AbstractMatrix{Float64})
     B, _ = LLLplus.hkz(G,)
@@ -28,7 +48,7 @@ Perform the lattice statistics decoding algorithm. The algorithm checks whether 
 function lattice_statistics_decoding!(c::Vector{Float64}, λ::Vector{Float64}, lsd::LatticeStatisticsDecoding)
     w = solution_weight(c, λ)
     for candidate in lsd.candidates
-        _c = c - lsd.G * candidate
+        _c = c - lsd.basis * candidate
         w_candidate = solution_weight(_c, λ)
         if w_candidate < w
             c .= _c
@@ -38,30 +58,24 @@ function lattice_statistics_decoding!(c::Vector{Float64}, λ::Vector{Float64}, l
 end
 
 
-
-"""
-    lattice_statistics_decoding!(c::Vector{Float64}, b::Vector{Int64}, λ::Vector{Float64}, G::AbstractMatrix{Int64})
-
-Perform the lattice statistics decoding algorithm.
-The algorithm checks whether the current solution `c` can be improved by adding a candidate vector to it.
-The candidate is accepted if the weight of the new solution is smaller than the weight of the current solution.
-In principle the solution weight function can be any function that measures the quality of the solution.
-"""
-function lattice_statistics_decoding!(c::Vector{Float64}, b::Vector{Int64}, λ::Vector{Float64}, G::AbstractMatrix{Int64})
-
-    w = solution_weight(c, λ)
-
-    for candidate in generate_candidates(b, λ)
-        _c = c - G * candidate
+function local_search!(c::Vector{Float64}, η::Vector{Float64}, dec::Vector{Int64}, λ::Vector{Float64}, lsd::LatticeStatisticsDecoding)
+    _dec = copy(dec)
+    w = solution_weight(η - lsd.basis * dec, λ)
+    for candidate in lsd.candidates
+        _dec = dec + candidate
+        _c = η - lsd.basis * _dec
         w_candidate = solution_weight(_c, λ)
         if w_candidate < w
-            c = _c
-            w = w_candidate
+            c = copy(_c)
+            w = copy(w_candidate)
         end
     end
-
 end
 
+local_search!(c::Vector{Float64}, η::Vector{Float64}, dec::Vector{Int64}, lsd::LatticeStatisticsDecoding) = local_search!(c, η, dec, η, lsd)
+
+
+lattice_statistics_decoding!(c::Vector{Float64}, lsd::LatticeStatisticsDecoding) = lattice_statistics_decoding!(c, c, lsd)
 
 function solution_weight(b::Vector{Float64})
     return norm(b)
@@ -168,7 +182,7 @@ end
 
 
 
-it = generate_candidates_iterator(256, [5, 2, 1], collect(1:20))
+# it = generate_candidates_iterator(256, [5, 2, 1], collect(1:20))
 
 """
     generate_value_sets(rs::Vector{Int64}, i::Int64)
@@ -203,14 +217,14 @@ end
 
 
 
-H = [[1, 0, 0, 0, 0] [1 / 2, 1 / 2, 0, 0, 0] [0, 1 / 2, 1 / 2, 0, 0] [0, 0, 1 / 2, 1 / 2, 0] [0, 0, 0, 1 / 2, 1 / 2]]
-G = inv(H)
-n = 5
-y = 0.1 * randn(n)
-b = [0, 0, 0, 0, 0]
-λ = abs.(y - G * b)
+# H = [[1, 0, 0, 0, 0] [1 / 2, 1 / 2, 0, 0, 0] [0, 1 / 2, 1 / 2, 0, 0] [0, 0, 1 / 2, 1 / 2, 0] [0, 0, 0, 1 / 2, 1 / 2]]
+# G = inv(H)
+# n = 5
+# y = 0.1 * randn(n)
+# b = [0, 0, 0, 0, 0]
+# λ = abs.(y - G * b)
 
-sort_idx = sortperm(λ, rev=true)
+# sort_idx = sortperm(λ, rev=true)
 
 
 

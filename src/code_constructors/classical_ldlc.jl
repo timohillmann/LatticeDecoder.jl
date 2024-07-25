@@ -280,62 +280,6 @@ struct LDLCode
     H::AbstractMatrix{Float64}
 end
 
-
-"""
-    generator_matrix(H::AbstractMatrix)
-
-    Compute the generator matrix of the LDLC code from the parity-check matrix H.
-"""
-function generator_matrix(H::AbstractMatrix)
-    return inv(H)
-end
-
-
-"""
-    encode(x::AbstractArray, G::AbstractMatrix)
-
-    Encode the input vector x using the generator matrix G.
-"""
-function encode(x::AbstractArray, G::AbstractMatrix)
-    return G * x
-end
-
-
-"""
-    encode!(x::AbstractArray, G::AbstractMatrix)
-
-    Encode the input vector x using the generator matrix G. The result is stored in the input vector x.
-"""
-function encode!(x::AbstractArray, G::AbstractMatrix)
-    x .= G * x
-end
-
-
-"""
-    decode(x::AbstractArray, H::AbstractMatrix)
-
-    Decode the input vector x using the parity-check matrix H.
-"""
-function decode(x::AbstractArray, H::AbstractMatrix)
-    return Int64.(round.(H * x))
-end
-
-
-"""
-    decode!(x::AbstractArray, H::AbstractMatrix)
-
-    Decode the input vector x using the parity-check matrix H. The result is stored in the input vector x.
-"""
-function decode!(x::AbstractArray, H::AbstractMatrix)
-    x .= Int64.(round.(H * x))
-end
-
-
-struct LDLCode
-    H::AbstractMatrix{Float64}
-end
-
-
 function load_ldlc(d, n)
     code = npzread("/Users/timo/Documents/GitHub/LatticeDecoder.jl/data/generator_matrices/ldlc/d_$(d)_n_$(n).npz")
     return code

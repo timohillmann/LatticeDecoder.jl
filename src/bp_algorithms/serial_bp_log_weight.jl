@@ -41,7 +41,6 @@ function update_variable_node!(tg::TannerGraph, vn_idx::Int64)
         vn_pos_idx = vn.pos_in_check_neighbour[j]
         check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
     end
-
     # variable_node_messages_allocationless!(tg, vn_idx)
     lsd_variable_node_messages!(tg, vn_idx)
 end
@@ -91,7 +90,7 @@ function update_reliability_schedule!(tg::TannerGraph)
     @inbounds for i in 1:length(tg.var_nodes)
         avg_reliability!(tg.bp_result, tg, i)
     end
-    sortperm!(tg.schedule, tg.bp_result, rev=false)
+    sortperm!(tg.schedule, tg.bp_result, rev=true)
 end
 
 """
@@ -116,6 +115,7 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
 
     # basic iteration
     for i in 1:max_iter
+        # printstyled("Iteration: $i\n", color=:blue)
         update_reliability_schedule!(tg)
         for vn_idx in tg.schedule
             update_variable_node!(tg, vn_idx)

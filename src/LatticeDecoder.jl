@@ -9,7 +9,7 @@ include("code_constructors/rep_codes.jl")
 export GKP_Surface_Code
 include("code_constructors/surface_codes.jl")
 
-export lattice_statistics_decoding, LatticeStatisticsDecoding, lattice_statistics_decoding!
+export lattice_statistics_decoding, LatticeStatisticsDecoding, lattice_statistics_decoding!, local_search!
 include("lattice_osd/lattice_statistics_decoding.jl")
 
 # BP tools
