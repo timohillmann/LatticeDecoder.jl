@@ -46,7 +46,7 @@ Perform the lattice statistics decoding algorithm. The algorithm checks whether 
 
 """
 function lattice_statistics_decoding!(c::Vector{Float64}, λ::Vector{Float64}, lsd::LatticeStatisticsDecoding)
-    w = solution_weight(c, λ)
+    w = solution_weight(c)
     for candidate in lsd.candidates
         _c = c - lsd.basis * candidate
         w_candidate = solution_weight(_c, λ)
@@ -64,7 +64,7 @@ function local_search!(c::Vector{Float64}, η::Vector{Float64}, dec::Vector{Int6
     for candidate in lsd.candidates
         _dec = dec + candidate
         _c = η - lsd.basis * _dec
-        w_candidate = solution_weight(_c, λ)
+        w_candidate = solution_weight(_c)
         if w_candidate < w
             c = copy(_c)
             w = copy(w_candidate)

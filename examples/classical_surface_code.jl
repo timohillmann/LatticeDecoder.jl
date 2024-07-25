@@ -1,5 +1,5 @@
 using Distributed
-addprocs(6);
+addprocs(5);
 @everywhere using LatticeDecoder
 # using LatticeDecoder
 
@@ -78,7 +78,7 @@ end
 
 
 using Plots
-samples = 25_000;
+samples = 5_000;
 max_iter = 10;
 σ = lattice_capacity_std() * sqrt(2);
 p = plot();
