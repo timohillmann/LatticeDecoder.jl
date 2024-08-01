@@ -1,8 +1,8 @@
 using Distributed
-addprocs(5);
+addprocs(1);
 @everywhere using LatticeDecoder
 
-@everywhere function qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search::Bool=true, schedule::String="serial", iterations::Int=tg.nv)
+@everywhere function qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search::Bool=true, schedule::String="serial", iterations::Int=tg.nv, decoder::String="lsd")
     if schedule == "serial"
         run_bp! = run_serial_belief_propagation!
     else
@@ -11,7 +11,7 @@ addprocs(5);
     tot_errors = @distributed (+) for idx = 1:n_samples
         y = sample_error(σ, tg.nv)
 
-        bp_result = run_bp!(tg, y, σ, iterations)
+        bp_result = run_bp!(tg, y, σ, iterations,)
         # bp_result = run_serial_belief_propagation!(tg, y, σ, tg.nv)
         # bp_result = run_belief_propagation!(tg, y, σ, tg.nv)
         dec = hard_decision(bp_result, H)
@@ -46,10 +46,10 @@ end
 
 
 global result_dict = Dict()
-path = "results/rep_code_2.csv"
+path = "results/rep_code_3.csv"
 for local_search in [true, false]
     for schedule in ["serial", "parallel"]
-        for n in 15:2:21
+        for n in [3]
             code = GKP_Rep_Code(n, false, true)
             logical = Vector(code.logical[1:n])
             order = local_search ? [2, 1, 1] : [0]
@@ -60,7 +60,7 @@ for local_search in [true, false]
             H = code.code[n+1:end, n+1:end]
             G = inv(H)
             sigmas = collect(0.3:0.1:0.4) ./ sqrt(2 * pi)
-            n_samples = 1_000_000
+            n_samples = 1_000
             results = qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis, iterations)
 
             for (σ, res) in zip(sigmas, results)

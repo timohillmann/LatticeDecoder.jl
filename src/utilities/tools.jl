@@ -31,9 +31,18 @@ function write_csv_line(file::IO,
     errors = lpad(string(errors), 10)
     discards = lpad(string(discards), 10)
     seconds = lpad(string(seconds), 8)
-    println(file, """$shots,$errors,$discards,$seconds,$decoder,$strong_id,"$(JSON3.write(json_metadata))","$(JSON3.write(custom_counts))\"""")
+
+
+    json_metadata_str = escape_double_quotes(JSON3.write(json_metadata))
+    custom_counts_str = escape_double_quotes(JSON3.write(custom_counts))
+
+
+    println(file, """$shots,$errors,$discards,$seconds,$decoder,$strong_id,"$json_metadata_str","$custom_counts_str\"""")
 end
 
+function escape_double_quotes(s::String)
+    return replace(s, "\"" => "\"\"")
+end
 
 
 """

@@ -29,11 +29,11 @@ end
 
 
 """
-    update_variable_node!(tg::TannerGraph, vn_idx::Int64)
+    update_variable_node_lsd!(tg::TannerGraph, vn_idx::Int64)
 
-Update the messages of a variable node in a Tanner graph.
+Update the messages of a variable node in a Tanner graph using the LSD algorithm.
 """
-function update_variable_node!(tg::TannerGraph, vn_idx::Int64)
+function update_variable_node_lsd!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     # all check nodes connected to this variable node send their messages to it
     for j = 1:length(vn.neighbours)
@@ -41,9 +41,28 @@ function update_variable_node!(tg::TannerGraph, vn_idx::Int64)
         vn_pos_idx = vn.pos_in_check_neighbour[j]
         check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
     end
-    # variable_node_messages_allocationless!(tg, vn_idx)
-    lsd_variable_node_messages!(tg, vn_idx)
+    variable_node_messages_allocationless!(tg, vn_idx)
 end
+
+
+"""
+    update_variable_node_nearest!(tg::TannerGraph, vn_idx::Int64)
+
+Update the messages of a variable node in a Tanner graph using the nearest algorithm.
+"""
+function update_variable_node_nearest!(tg::TannerGraph, vn_idx::Int64)
+    vn = tg.var_nodes[vn_idx]
+    # all check nodes connected to this variable node send their messages to it
+    for j = 1:length(vn.neighbours)
+        cn_idx, _ = vn.neighbours[j]
+        vn_pos_idx = vn.pos_in_check_neighbour[j]
+        check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
+    end
+    variable_node_messages_allocationless!(tg, vn_idx)
+end
+
+
+
 
 
 """
@@ -108,7 +127,22 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, search_radius::Float64)
+function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_radius::Float64=1.5)
+
+    if decoder == "nearest"
+        update_variable_node! = update_variable_node_nearest!
+        decision_step! = decision_step_nearest!
+
+    elseif decoder == "lsd"
+        update_variable_node! = update_variable_node_lsd!
+        decision_step! = decision_step_lsd!
+
+    else
+        error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
+    end
+
+
+
     # initilization
     initialize_messages!(tg, message, σ)
     tg.search_interval = search_radius
@@ -122,9 +156,9 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
         end
     end
     # final decision
-    decision_step(tg)
+    decision_step!(tg)
 
     return tg.bp_result
 end
 
-run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64) = run_serial_belief_propagation!(tg, message, σ, max_iter, 0.0)
+# run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, ) = run_serial_belief_propagation!(tg, message, σ, max_iter)

@@ -73,16 +73,25 @@ end
 
 
 """
-    variable_node_iterations!(tg::TannerGraph)
+    variable_node_iterations_nearest!(tg::TannerGraph)
 
-    Iterates over all variable nodes and updates the messages of the check nodes.
+    Iterates over all variable nodes and updates the messages of the check nodes using the nearest algorithm.
 """
-function variable_node_iterations!(tg::TannerGraph)
+
+function variable_node_iterations_nearest!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        # variable_node_messages!(tg, i)
-        # variable_node_messages_allocationless!(tg, i)
-        # mm_variable_node_messages!(tg, i)
-        # variable_node_messages_allocationless!(tg, i)
+        variable_node_messages_allocationless!(tg, i)
+    end
+end
+
+
+"""
+    variable_node_iterations_lsd!(tg::TannerGraph)
+
+    Iterates over all variable nodes and updates the messages of the check nodes using the LSD algorithm.
+"""
+function variable_node_iterations_lsd!(tg::TannerGraph)
+    for i in 1:length(tg.var_nodes)
         lsd_variable_node_messages!(tg, i)
     end
 end
@@ -150,18 +159,30 @@ end
 variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64) = variable_node_messages_allocationless!(tg, vn_idx, VarNodeAlloc)
 
 """
-    decision_step(tg::TannerGraph)
+    decision_step_nearest!(tg::TannerGraph)
 
-    Compute the decision for each variable node in the Tanner graph.
+    Compute the decision for each variable node in the Tanner graph using the nearest algorithm.
 
 """
-function decision_step(tg::TannerGraph)
+function decision_step_nearest!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        # variable_node_decision!(tg.bp_result, tg, i)
-        # variable_node_decision_allocationless!(tg.bp_result, tg, i)
-        _lsd_variable_node_decision!(tg, i)
+        variable_node_decision_allocationless!(tg.bp_result, tg, i)
     end
 end
+
+
+"""
+    decision_step_lsd!(tg::TannerGraph)
+
+    Compute the decision for each variable node in the Tanner graph using the LSD algorithm.
+
+"""
+function decision_step_lsd!(tg::TannerGraph)
+    for i in 1:length(tg.var_nodes)
+        _lsd_variable_node_decision!(tg.bp_result, tg, i)
+    end
+end
+
 
 
 """
@@ -267,7 +288,22 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, search_interval::Float64=1.5)
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+
+    if decoder == "nearest"
+        variable_node_iterations! = variable_node_iterations_nearest!
+        decision_step! = decision_step_nearest!
+
+    elseif decoder == "lsd"
+        variable_node_iterations! = variable_node_iterations_lsd!
+        decision_step! = decision_step_lsd!
+
+    else
+        error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
+    end
+
+
+
     # set the search interval
     tg.search_interval = search_interval
     # println("initialize variable messages")
@@ -284,7 +320,7 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
     end
 
     # final decision
-    decision_step(tg)
+    decision_step!(tg)
 
     return tg.bp_result
 end
