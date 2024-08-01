@@ -49,16 +49,12 @@ end
 
 
 """
-    metadata(code::String, decoder::String, local_search::Bool, d::Int, sigma::Float64, schedule::String,
-    local_seach_order::Vector{Int64})
+    metadata(; kwargs...)
 
 Create a metadata dictionary for the simulation data.
 """
-function metadata(; code::String, decoder::String, local_search::Bool, d::Int, sigma::Float64, schedule::String,
-    local_seach_order::Vector{Int64},
-    reduced_basis::Bool)
-    return Dict("code" => code, "decoder" => decoder, "local_search" => local_search, "d" => d, "sigma" => sigma, "schedule" => schedule,
-        "local_search_order" => local_seach_order, "reduced_basis" => reduced_basis)
+function metadata(; kwargs...)
+    return Dict(kwargs...)
 end
 
 

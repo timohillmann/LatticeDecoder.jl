@@ -2,7 +2,7 @@ using Distributed
 addprocs(5);
 @everywhere using LatticeDecoder
 
-@everywhere function qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search::Bool=true, schedule::String="serial")
+@everywhere function qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search::Bool=true, schedule::String="serial", iterations::Int=tg.nv)
     if schedule == "serial"
         run_bp! = run_serial_belief_propagation!
     else
@@ -11,7 +11,7 @@ addprocs(5);
     tot_errors = @distributed (+) for idx = 1:n_samples
         y = sample_error(σ, tg.nv)
 
-        bp_result = run_bp!(tg, y, σ, tg.nv)
+        bp_result = run_bp!(tg, y, σ, iterations)
         # bp_result = run_serial_belief_propagation!(tg, y, σ, tg.nv)
         # bp_result = run_belief_propagation!(tg, y, σ, tg.nv)
         dec = hard_decision(bp_result, H)
@@ -36,42 +36,44 @@ addprocs(5);
 end
 
 
-@everywhere function qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis)
+@everywhere function qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis, iterations)
     results = []
     tg = initialize_tanner_graph(H)
     lsd = LatticeStatisticsDecoding(order, G, reduced_basis)
-    results = [qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search, schedule) for σ in sigmas]
+    results = [qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search, schedule, iterations) for σ in sigmas]
     return results
 end
 
 
 global result_dict = Dict()
-path = "results/rep_code.csv"
+path = "results/rep_code_2.csv"
 for local_search in [true, false]
     for schedule in ["serial", "parallel"]
-        for n in 3:2:21
+        for n in 15:2:21
             code = GKP_Rep_Code(n, false, true)
             logical = Vector(code.logical[1:n])
             order = local_search ? [2, 1, 1] : [0]
             reduced_basis = true
+            iterations = n
 
 
             H = code.code[n+1:end, n+1:end]
             G = inv(H)
-            sigmas = collect(0.3:0.1:1.0) ./ sqrt(2 * pi)
-            n_samples = 100_000
-            results = qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis)
+            sigmas = collect(0.3:0.1:0.4) ./ sqrt(2 * pi)
+            n_samples = 1_000_000
+            results = qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis, iterations)
 
             for (σ, res) in zip(sigmas, results)
                 json_data = metadata(
                     code="rep_code",
                     schedule=schedule,
-                    decoder="lsd",  # "nearest",
+                    decoder="lsd",  # "lsd",
                     d=n,
                     local_seach_order=order,
                     local_search=local_search,
                     reduced_basis=reduced_basis,
                     sigma=σ,
+                    iterations=iterations,
                 )
                 add_data!(path, shots=n_samples, errors=res, decoder="lsd", json_metadata=json_data)
             end
