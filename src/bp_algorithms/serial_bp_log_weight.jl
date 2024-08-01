@@ -127,7 +127,7 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_radius::Float64=1.5)
+function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
 
     if decoder == "nearest"
         update_variable_node! = update_variable_node_nearest!
@@ -145,7 +145,7 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
 
     # initilization
     initialize_messages!(tg, message, σ)
-    tg.search_interval = search_radius
+    tg.search_interval = search_interval
 
     # basic iteration
     for i in 1:max_iter
