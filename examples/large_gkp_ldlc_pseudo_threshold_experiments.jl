@@ -3,7 +3,6 @@ using Distributed
 if nprocs()<6
     addprocs(6-nprocs())
 end
-# @everywhere using LatticeDecoder
 @everywhere using LinearAlgebra
 @everywhere using Plots
 # using LatticeAlgorithms
@@ -98,58 +97,69 @@ end
 end
 
 
-th_pl = plot()
-
+#######################################################
+#######################################################
 samples = 1000
+# values for the noise strength (linear scale, lattice units)
+# sigmas = collect(0.05:0.05:0.3)
+sigmas = collect(0.1:0.1:1) ./sqrt(2*pi)
+# sigmas = [0.01]
+
+th_pl = plot()
+title!("Decoder failure probability")
+xlabel!(L"$\sigma$")
+ylabel!(L"$p_\mathrm{fail}$")
 
 
-file_names = readlines("examples/ldlc_gens/qubit_containing_2.txt");#[1:1]
+#######################################################
+#######################################################
 
-file_names
-# file_names = readlines("examples/ldlc_gens/qubit_containing.txt")
+println("computing single-mode error rates")
+failure_rates = Vector{Float64}(undef, length(sigmas))
+l = 1
+for σ in sigmas
+    success = 0
+    for j in 1:1_000_000
+        y= sample_error(σ, 2);
+        # println(y)
+        # syndrome = mod.(y, 1/sqrt(2));
+        # println(syndrome)
+        # residual = y-syndrome;
+        # println(residual)
+        # println(all(mod.(residual, sqrt(2)) .==0))
+        residual = round.(Int64,sqrt(2)*y)./sqrt(2)
 
-
-
-
-# Function to extract integer from string
-function extract_int(s)
-    # Define the regular expression pattern
-    pattern = r"gkpldlc_(.*?)_canonical_M"
-    
-    # Extract the matched substring
-    match_result = match(pattern, s)
-    
-    if isnothing(match_result)
-        println("No match found")
-    else
-        substring = match_result.captures[1]
+        success += all(mod.(residual, sqrt(2)) .≈ 0)
     end
-    
-    n , _ = parse.(Int64,split(substring, "_"))
-    return n
+    fr =1-success/1_000_000
+    println("σ = $σ; failure rate: ", fr)
+    failure_rates[l] = fr
+    l+=1
 end
+plot!(th_pl,sigmas,failure_rates, label="single mode", markershape=:square,linecolor=:black, markercolor=:black)
 
-# Custom comparator function
-function compare_strings(a, b)
-    a_int = extract_int(a)
-    b_int = extract_int(b)
-    return a_int < b_int 
-end
+#######################################################
+#######################################################
 
-# Sort the vector of strings
-sort!(file_names, lt=compare_strings)
+# file_names = readlines("examples/ldlc_gens/qubit_containing_2.txt");#[1:1]
 
 
-nmin , _ = parse.(Int64,split(match(r"gkpldlc_(.*?)_canonical_M", file_names[1]).captures[1], "_"))
-nmax , _ = parse.(Int64,split(match(r"gkpldlc_(.*?)_canonical_M", file_names[end]).captures[1], "_"))
+# file_names = readlines("examples/ldlc_gens/qubit_containing.txt")
+file_names = filter(file-> !occursin("_A.npy",file), readdir("examples/ldlc_gens/large/"))
+
+
+nmin =50
+nmax =500
 # file_names[1]
 
 cgrad = range(colorant"red", stop=colorant"blue", length=(nmax-nmin+1));
 
+# file_names[1:5]
+
 for file_name in file_names
 
     # Define the regular expression pattern
-    pattern = r"gkpldlc_(.*?)_canonical_M"
+    pattern = r"gkpldlc_(.*?).npy"
 
     # Extract the matched substring
     match_result = match(pattern, file_name)
@@ -165,31 +175,40 @@ for file_name in file_names
     println(n," ",index)
     # exit()
     # println(n)
-    J = BigInt.(symplectic_form(n))
+    # J = BigInt.(symplectic_form(n))
+    J = symplectic_form(n)
     
     # M is the GKP generator, 
-    M = npzread("examples/ldlc_gens/gkpldlc_$(n)_$(index).npy")
+    M = npzread("examples/ldlc_gens/large/gkpldlc_$(n)_$(index).npy")
     # display(M)
-    Mcan = readdlm("examples/ldlc_gens/gkpldlc_$(n)_$(index)_canonical_M.npy.txt", ' ', BigInt) # Read space-delimited integers into matrix A
-    Mcan = BigInt.(Mcan*M)
 
-    logical = 0
-    for j in 1:(n)
-            if abs(Mcan[j,:]'*J*Mcan[j+n,:]) ≈ 2
-                logical = Mcan[[j,j+n],:]
-                # println("zeros if twice the logical ops have even symp prod with each stabilizer")
-                # display(Mcan[[j,j+n],:]*J*M'.%2)
-            end
-    end
+    # M_LLL = Nemo.lll(Nemo.matrix(ZZ,M)) 
+    Mperp = inv(J*M')
+    # logical_ext_LLL = Nemo.lll(Nemo.matrix(ZZ,twice_logical_ext)) 
 
-    twice_logical_ext = vcat(2*M, logical)
-
-    logical_ext_LLL = Nemo.lll(Nemo.matrix(ZZ,twice_logical_ext)) 
-
-    # unique(logical_ext_LLL)
-
+    println("starting LLL of Mperp")
+    B, _ = LLLplus.lll(Mperp',0.75)
+    println("done")
+    # B, _ = LLLplus.hkz(Mperp',)
+    Mperp_LLL = B'
+    # we take this as generator for the LDLC algorithm, thus with column-convention
+    G = Mperp_LLL'
+    # G = Mperp
+    logical_to_input = G
     
-    logical_to_input = Matrix{Int64}(logical_ext_LLL)./2
+    
+    # in the case of an overcomplete syndrome we need to calculate
+    # the decision_H from an invertible matrix so that we also 
+    # can calculate the generator matrix for the classical code generation
+    decision_H = inv(G)
+    # we also LLL reduce this
+    println("starting LLL of decision_H")
+    B, _ = LLLplus.lll(decision_H',0.98)
+    println("done")
+    # B, _ = LLLplus.hkz(decision_H')
+    # decision_H = B'
+
+
 
     # display(unique(logical_to_input*J*M'))
     # display(unique(logical_to_input*J*Mcan'-round.(BigInt,logical_to_input*J*Mcan')))
@@ -206,10 +225,6 @@ for file_name in file_names
     # println("type of G: ", typeof(G))
 
 
-    # values for the noise strength (linear scale, lattice units)
-    sigmas = collect(0.05:0.05:0.3)
-    # sigmas = collect(0.5:0.1:2) ./sqrt(2*pi)
-    # sigmas = [0.01]
     
     failure_rates = Vector{Float64}(undef, length(sigmas))
     
@@ -251,16 +266,11 @@ end
 
 
 
-
-
-
-title!("Decoder failure probability (reduced)")
-xlabel!(L"$\sigma$")
-ylabel!(L"$p_\mathrm{fail}$")
 display(th_pl)
 # readline()
 
-savefig(th_pl, "GKPLDLC_thr_plot.pdf")
+savefig(th_pl, "GKPLDLC_large_thr_plot.pdf")
+exit()
 
 # size(bp_result')
 # size(code.logical')
@@ -282,6 +292,7 @@ savefig(th_pl, "GKPLDLC_thr_plot.pdf")
 
 
 
+
 n , index = 15,3
 println(n," ",index)
 # exit()
@@ -293,8 +304,6 @@ M = npzread("examples/ldlc_gens/gkpldlc_$(n)_$(index).npy")
 # display(M)
 Mcan = readdlm("examples/ldlc_gens/gkpldlc_$(n)_$(index)_canonical_M.npy.txt", ' ', BigInt) # Read space-delimited integers into matrix A
 Mcan = BigInt.(Mcan*M)
-
-det(Mcan)^(1/15)
 
 logical = 0
 for j in 1:(n)

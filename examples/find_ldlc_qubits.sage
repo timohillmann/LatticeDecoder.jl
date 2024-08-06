@@ -4,15 +4,18 @@ from fnmatch import fnmatch
 from sage.matrix.symplectic_basis import symplectic_basis_over_ZZ
 
 
-files = os.listdir("ldlc_gens")
+#files = os.listdir("ldlc_gens")
 #files = ["gkpldlc_15_3_A.npy"]
+files = os.listdir("ldlc_gens/large")
 for f in files:
     if fnmatch(f,'*_A.npy'):
         print(f)
-        canonical_M_name = "ldlc_gens/"+f.replace("_A", "_canonical_M")
+        #canonical_M_name = "ldlc_gens/"+f.replace("_A", "_canonical_M")
+        canonical_M_name = "ldlc_gens/large/"+f.replace("_A", "_canonical_M")
+
         print(canonical_M_name)
         
-        A = matrix(ZZ,np.load("ldlc_gens/"+f))
+        A = matrix(ZZ,np.load("ldlc_gens/large/"+f))
         F, C = symplectic_basis_over_ZZ(A)
         #print("F", F)
         #print("C", C)
@@ -30,7 +33,7 @@ for f in files:
 
         if 2 in loc_dims:
             print("qubit found in : ", canonical_M_name)
-            with open("ldlc_gens/qubit_containing_2.txt", "a") as file:
+            with open("ldlc_gens/large/qubit_containing.txt", "a") as file:
                 # Write the string to the file, followed by a newline character
                 file.write(canonical_M_name + "\n")
 

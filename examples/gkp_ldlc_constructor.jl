@@ -17,21 +17,23 @@ using LinearAlgebraX
 
 d = 4
 
-for n in [100,1000]
+# for n in [100,1000]
+for n in 15:60
     println("n = ", n)
     J = symplectic_form(n)
     j = 1
-    while j<=20
+    while j<=5
         M = Int64.(sqrt(d)*classical_ldlc(d, 2*n))
         # if 2 in Primes.factor(Vector, detx(M))
         if detx(M)%2==0
-            npzwrite("examples/ldlc_gens/gkpldlc_$(n)_$(j).npy", M)
+        # if true
+            npzwrite("examples/ldlc_gens/large/gkpldlc_$(n)_$(j).npy", M)
             A = M*J*M'
-            npzwrite("examples/ldlc_gens/gkpldlc_$(n)_$(j)_A.npy", A)
+            npzwrite("examples/ldlc_gens/large/gkpldlc_$(n)_$(j)_A.npy", A)
             println("found $j")
             j+=1
         end
     end
 end
 
-run(`sage find_ldlc_qubits.sage`)
+# run(`sage examples/find_ldlc_qubits.sage`)
