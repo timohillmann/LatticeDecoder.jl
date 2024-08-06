@@ -37,13 +37,32 @@ function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::Variab
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     if length(D) == 0
+        # println("Nothing found.")
+        # printstyled("msg_v: $(msg_vector), cn_msg: $(cn_message)\n", color=:red)
         return 0
+
     end
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
     moment_matching!(cn_message, candidate_gaussians)
     return length(D)
 end
 
+
+"""
+    _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+
+Performs the decision step using the List Sphere Decoding algorithm for a variable node `vn_idx` in the Tanner graph `tg`.
+"""
+function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+    # println("LSD Variable Node Decision")
+    vn = tg.var_nodes[vn_idx]
+    msg_vector = _collect_msg_vector(vn)
+    lsd_inputs = ListSphereDecodingInput(msg_vector)
+    L, D = simplified_lsd(lsd_inputs)
+    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+    moment_matching!(vn.message, candidate_gaussians)
+    bp_result[vn_idx] = vn.message.mean
+end
 
 """
     _collect_msg_vector(vn::VariableNode, j::Int64)
@@ -61,6 +80,23 @@ function _collect_msg_vector(vn::VariableNode, j::Int64)
     push!(msg_vector, vn.message)
     return msg_vector
 end
+
+
+"""
+    _collect_msg_vector(vn::VariableNode)
+
+Collects the message of a variable node `vn` for all neighbouring check nodes.
+"""
+function _collect_msg_vector(vn::VariableNode)
+    msg_vector = Vector{gaussian_log_weight}()
+    for i = 1:length(vn.messages)
+        push!(msg_vector, vn.messages[i])
+    end
+    push!(msg_vector, vn.message)
+    return msg_vector
+end
+
+_collect_msg_vector(vn::VariableNode, j::Nothing) = _collect_msg_vector(vn)
 
 
 """
@@ -87,7 +123,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
 
     # Init float values
     Vinv = 0.0
-    β = 0.0
+    β = 0.5
 
 
     for i = 1:(length(msg_vector))
@@ -129,4 +165,27 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
         candidate_gaussians[i] = gaussian_log_weight(mean, copy(var), log_weight)
     end
     return candidate_gaussians
+end
+
+
+"""
+    _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
+
+Perform the variable node decision step using the List Sphere Decoding algorithm.
+"""
+function _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
+    vn = tg.var_nodes[vn_idx]
+    msg_vector = _collect_msg_vector(vn)
+    # println("Message Vector: ", msg_vector)
+    lsd_inputs = ListSphereDecodingInput(msg_vector)
+
+    L, D = simplified_lsd(lsd_inputs)
+    can_gaussian = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+    if length(D) == 0
+        # println("Nothing found.")
+    else
+        moment_matching!(vn.message, can_gaussian)
+    end
+    # println("Candidate Gaussians: ", can_gaussian)
+    tg.bp_result[vn_idx] = vn.message.mean
 end

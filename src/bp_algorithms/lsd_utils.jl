@@ -1,8 +1,8 @@
 # This file contains the List Sphere Decoding algorithm implementation.
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
-const EPSILON = 1e-5
-
+const EPSILON = 1e-30
+const MAX_ITER = 10_000
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}
@@ -79,8 +79,9 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
     z[k] = round(gamma[k])
     s[k] = sign(gamma[k] - z[k])
     dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
-
-    while k <= (d - 1)
+    iter = 0
+    while k <= (d - 1) && iter <= MAX_ITER
+        iter += 1
         if dist[k] <= (inputs.β)^2
             if k == 1
                 push!(L, round.(Int16, copy(z)))
@@ -107,6 +108,7 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
 
         else
             if k == (d - 1)
+                # printstyled("Returnd after $(iter) iterations.\n", color=:blue)
                 return L, D
             else
                 k += 1
@@ -119,6 +121,7 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
 
         end # if dist
     end # while
+    return L, D
 end
 
 

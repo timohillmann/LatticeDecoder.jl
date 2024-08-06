@@ -1,6 +1,7 @@
 using Random
 using Logging
 using LinearAlgebra
+using NPZ
 
 """
     init_p_mat(d::Int, n::Int)
@@ -277,5 +278,10 @@ end
 
 struct LDLCode
     H::AbstractMatrix{Float64}
+end
+
+function load_ldlc(d, n)
+    code = npzread("/Users/timo/Documents/GitHub/LatticeDecoder.jl/data/generator_matrices/ldlc/d_$(d)_n_$(n).npz")
+    return code
 end
 

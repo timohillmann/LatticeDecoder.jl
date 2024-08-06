@@ -1,40 +1,7 @@
-using Distributed
-addprocs(6);
-@everywhere using LatticeDecoder
-using LatticeDecoder
-
-# Parameters
-n = 256;
-d = 5;
-H = classical_ldlc(d, n, true);
-
-# Initialize Tanner graph
-
-tg = initialize_tanner_graph(H);
-
-σ = 0.20;
-
-b = zeros(Int64, size(H, 1));
-b[1] = 0;
-b[2] = 0;
-
-G = generator_matrix(H);
-y = encode(b, G);
-
-y .+= sample_error(σ, n);
-
-serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10);
-serial_dec = hard_decision(serial_bp_result, H);
-
-bp_result = run_belief_propagation!(tg, y, σ, 10);
-dec = hard_decision(bp_result, H);
-
-println("Number of symbol errors: ", count_symbol_errors(dec, b))
-println("Number of symbol errors (serial): ", count_symbol_errors(serial_dec, b))
-
-# check that bp_results approximately fulfill the parity check equations
-println(round.(Int64, H * bp_result) .% 1)
-
+# using Distributed
+# addprocs(6);
+# @everywhere using LatticeDecoder
+# using LatticeDecoder
 
 @everywhere function random_bitstring(n)
     return rand(0:1, n)
@@ -77,14 +44,6 @@ end
         dec = hard_decision(bp_result, H)
         count_symbol_errors(dec)
     end
-    # errors = 0
-    # for i = 1:samples
-    #     y = sample_error(σ, size(H, 2))
-    #     tg = initialize_tanner_graph(H)
-    #     bp_result = run_belief_propagation!(tg, y, σ, max_iter)
-    #     dec = hard_decision(bp_result, H)
-    #     errors += count_symbol_errors(dec)
-    # end
 
     return errors / samples / size(H, 1)
 end
@@ -108,21 +67,25 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
     return z * sqrt(p̂_ * (1 - p̂_) / n̂_)
 end
 
+function classical_rep_code(n::Int64)
+    code = GKP_Rep_Code(n, false, true)
+    H = code.code
+    # cut out the perfect half
+    H = H[n+1:end, n+1:end]
+    return H
+end
+
+
 using Plots
-samples = 1000;
+samples = 1_000;
 max_iter = 10;
-σ = lattice_capacity_std()
-p = plot()
-sigmas = range(σ, 0.85 * σ, 4)
-samples = 1000;
-max_iter = 50;
 σ = lattice_capacity_std();
 p = plot();
-sigmas = range(σ, 0.85 * σ, 6);
+sigmas = range(σ, 0.3 * σ, 7);
 
-d = 7;
-for n in [1000]
-    H = classical_ldlc(d, n, true)
+d = 5;
+for n in [100]
+    H = classical_rep_code(n)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
 
     ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
