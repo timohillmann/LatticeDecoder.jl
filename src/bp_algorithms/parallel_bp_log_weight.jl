@@ -30,6 +30,33 @@ function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Fl
     end
 end
 
+
+"""
+    initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64})
+
+Initialize the messages of the Tanner graph for LDLC decoding. NOTE: here the variances can be different for different variable nodes
+"""
+function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64})
+
+    # Set variable node messages to received channel message
+    for i in 1:length(tg.var_nodes)
+        tg.var_nodes[i].message.mean = syndrome[i]
+        tg.var_nodes[i].message.var = σ[i]^2
+    end
+
+    # Collect the messages from the neighbouring variable nodes
+    for i in 1:length(tg.check_nodes)
+        check_node = tg.check_nodes[i]
+
+        for idx in 1:length(check_node.neighbours)
+            vn_idx, edge_weight = check_node.neighbours[idx]
+            check_node.messages[idx].mean = 1.0 * tg.var_nodes[vn_idx].message.mean
+            check_node.messages[idx].var = 1.0 * tg.var_nodes[vn_idx].message.var
+        end
+    end
+end
+
+
 """
     check_node_iterations!(tg::TannerGraph)
 
@@ -289,6 +316,60 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
 function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+
+    if decoder == "nearest"
+        variable_node_iterations! = variable_node_iterations_nearest!
+        decision_step! = decision_step_nearest!
+
+    elseif decoder == "lsd"
+        variable_node_iterations! = variable_node_iterations_lsd!
+        decision_step! = decision_step_lsd!
+
+    else
+        error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
+    end
+
+
+
+    # set the search interval
+    tg.search_interval = search_interval
+    # println("initialize variable messages")
+    # initilization
+    initialize_messages!(tg, message, σ)
+
+
+    # basic iteration
+    for i in 1:max_iter
+        # println("starting check node iteration $i")
+        check_node_iterations!(tg)
+        # println("starting th variable node iteration $i")
+        variable_node_iterations!(tg)
+    end
+
+    # final decision
+    decision_step!(tg)
+
+    return tg.bp_result
+end
+
+
+
+
+"""
+    run_belief_propagation!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64)
+
+Run the belief propagation algorithm on a Tanner graph to decode a low-density parity-check (LDPC) code.
+
+# Arguments
+- `tg::TannerGraph`: The Tanner graph representing the LDPC code.
+- `message::Vector{Float64}`: The message vector obtained from the received codeword.
+- `σ::Float64`: A vector of standard deviations of the noise in the received codeword for each variable node
+- `max_iter::Int64`: The maximum number of iterations to perform.
+
+# Returns
+- `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
+"""
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
 
     if decoder == "nearest"
         variable_node_iterations! = variable_node_iterations_nearest!
