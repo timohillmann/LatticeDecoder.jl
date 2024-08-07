@@ -12,13 +12,13 @@ using Optim
 
 n = 7
 
-samples = 1_000
-max_iter = 10
+samples = 50_000
+max_iter = 20
 
 @everywhere function cost(multipliers::Vector{Float64}, pars)
     tg, H, G, σs, samples, max_iter = pars
    
-    σ = σs / sqrt(2 * pi)
+    σ = σs
 
     success = @distributed (+) for i = 1:samples
         y = sample_error(σ, tg.nv)
@@ -36,6 +36,34 @@ max_iter = 10
     return -success / samples
 end
 
+
+@everywhere function just_run(n,σ, samples, max_iter)
+        # println("n = ", n)
+        J = symplectic_form(n)
+        code = GKP_Rep_Code(n, false, true)
+        # logical = vec(code.logical')
+        H = code.code[n+1:end,n+1:end]
+    
+        G = inv(H)
+    
+        tg = initialize_tanner_graph(H)
+
+   
+        success = @distributed (+) for i = 1:samples
+            y = sample_error(σ, tg.nv)
+            bp_result = run_belief_propagation!(tg, y, σ, max_iter, "nearest", search_interval=1/sqrt(2))
+            dec = hard_decision(bp_result, H)
+            res_err = G * dec
+            # println(res_err)
+            if (round.(Int, abs.(res_err * sqrt(2))).%2)[1] != 0
+                0
+            else
+                1
+            end
+        end
+    # println(success/samples)
+    return -success / samples
+end
 
 function optimize_rep_code(n,σ, samples, max_iter)
     # println("n = ", n)
@@ -77,9 +105,7 @@ function optimize_rep_code_evo(n,σ, samples, max_iter)
     # starting_multipliers = rand(n) .+ 0.5
     starting_multipliers = 5*rand(n)
     println(starting_multipliers)
-    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=10, show_trace=true)) #time_limit=60.0
-    # return starting_multipliers, optimize(x->(cost(x, pars)), zeros(Float64, n), 5*ones(Float64, n), starting_multipliers, Fminbox(NelderMead()), Optim.Options(show_trace=true)) #time_limit=60.0    # 
-    
+    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=50, show_trace=true, show_every=10)) 
 end
 
 
@@ -119,6 +145,9 @@ matching_results = Dict(
 distances = collect(3:2:7)
 
 failure_probs = Array{Float64}(undef, length(distances), length(σs))
+failure_probs_no_opt = Array{Float64}(undef, length(distances), length(σs))
+
+
 
 distance_ind = 1
 sigma_ind = 1
@@ -133,25 +162,29 @@ for d in distances
     for σ in σs
         starting_multipliers, results = optimize_rep_code_evo(d, σ, samples,max_iter)
         failure_probs[distance_ind,sigma_ind] = 1 + results.minimum
+        failure_probs_no_opt[distance_ind,sigma_ind] = 1 + just_run(d, σ, samples,max_iter)
         global sigma_ind += 1
     end
 
 
     plot!(th_pl,σs,failure_probs[distance_ind,:], label="n = $d",markershape=:circle)
-
     # Access the series objects
     series = th_pl.series_list
-
+    
     # Get the color of the second series
     color1 = series[jj][:seriescolor]
+
+    plot!(th_pl,σs,failure_probs_no_opt[distance_ind,:], label="noOpt, n = $d",markershape=:dtriangle, color=color1)
     plot!(th_pl,σs,matching_results["$d"], label="MWPM, n = $d",markershape=:xcross,color = color1)
+    display(th_pl)
     
     global distance_ind +=1 
-    global jj +=2
+    global jj +=3
 end
 
 failure_probs
-Plots.savefig(th_pl,"optimized th plot")
+display(th_pl)
+Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
 #########################################################################
 #########################################################################
 #########################################################################
