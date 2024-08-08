@@ -10,10 +10,10 @@ using Optim
 
 # σs = range(0.5, 2.0, 6)
 
-n = 7
+n = 3
 
 samples = 10_000
-max_iter = 20
+max_iter = 30
 
 @everywhere function cost(multipliers::Vector{Float64}, pars)
     tg, H, G, σs, samples, max_iter = pars
@@ -22,7 +22,9 @@ max_iter = 20
 
     success = @distributed (+) for i = 1:samples
         y = sample_error(σ, tg.nv)
-        bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "nearest", search_interval=1/sqrt(2))
+        # bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "nearest", search_interval=1/sqrt(2))
+        bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "lsd")
+
         dec = hard_decision(bp_result, H)
         res_err = G * dec
         # println(res_err)
@@ -51,7 +53,8 @@ end
    
         success = @distributed (+) for i = 1:samples
             y = sample_error(σ, tg.nv)
-            bp_result = run_belief_propagation!(tg, y, σ, max_iter, "nearest", search_interval=1/sqrt(2))
+            # bp_result = run_belief_propagation!(tg, y, σ, max_iter, "nearest", search_interval=1/sqrt(2))
+            bp_result = run_belief_propagation!(tg, y, σ, max_iter, "lsd")
             dec = hard_decision(bp_result, H)
             res_err = G * dec
             # println(res_err)
@@ -65,7 +68,7 @@ end
     return -success / samples
 end
 
-function optimize_rep_code(n,σ, samples, max_iter)
+function optimize_rep_code(n,σ, samples, max_iter; time_limit=NaN)
     # println("n = ", n)
     J = symplectic_form(n)
     code = GKP_Rep_Code(n, false, true)
@@ -82,13 +85,13 @@ function optimize_rep_code(n,σ, samples, max_iter)
     # starting_multipliers = rand(n) .+ 0.5
     starting_multipliers = 5*rand(n)
     println(starting_multipliers)
-    return starting_multipliers, Optim.optimize(x->(cost(x, pars)), starting_multipliers, method=NelderMead(), show_trace=true, allow_f_increases=true) #time_limit=60.0
+    return starting_multipliers, Optim.optimize(x->(cost(x, pars)), starting_multipliers, method=NelderMead(), show_trace=true, allow_f_increases=true; time_limit = time_limit) #time_limit=60.0
     # return starting_multipliers, optimize(x->(cost(x, pars)), zeros(Float64, n), 5*ones(Float64, n), starting_multipliers, Fminbox(NelderMead()), Optim.Options(show_trace=true)) #time_limit=60.0    # 
     
 end
 
 using Evolutionary
-function optimize_rep_code_evo(n,σ, samples, max_iter)
+function optimize_rep_code_evo(n,σ, samples, max_iter; time_limit=NaN)
     # println("n = ", n)
     J = symplectic_form(n)
     code = GKP_Rep_Code(n, false, true)
@@ -102,15 +105,15 @@ function optimize_rep_code_evo(n,σ, samples, max_iter)
     #  logical = zeros(Int8, 1, tg.nv)
     pars = (tg, H, G, σ, samples, max_iter)
     # starting_multipliers = ones(Float64, n)
-    starting_multipliers = rand(n) .+ 0.5
-    # starting_multipliers = 5*rand(n)
+    # starting_multipliers = rand(n) .+ 0.5
+    starting_multipliers = 10*rand(n)
     println(starting_multipliers)
-    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=100, show_trace=true, show_every=10)) 
+    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=100, show_trace=true, show_every=1, time_limit=Float64(time_limit))) 
 end
 
 
 ####### OPTIM OPTIMIZATION
-# starting_multipliers, results = optimize_rep_code(3, 0.5, samples,max_iter)
+# starting_multipliers, results = optimize_rep_code(3, 0.5, samples,max_iter, time_limit = 30)
 # starting_multipliers'
 # Optim.minimizer(results)'
 # results.minimum
@@ -190,39 +193,41 @@ display(th_pl)
 Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
 
 using NPZ
-npzwrite("examples/failure_probabilities_optimized_nearest_CMAES.txt",failure_probs)
-npzwrite("examples/failure_probabilities_nearest.txt",failure_probs_no_opt)
+npzwrite("results/failure_probabilities_optimized_nearest_CMAES.txt",failure_probs)
+npzwrite("results/failure_probabilities_nearest.txt",failure_probs_no_opt)
+
+exit()
 #########################################################################
 #########################################################################
 #########################################################################
 
-J = symplectic_form(n)
-code = GKP_Rep_Code(n, false, true)
-# logical = vec(code.logical')
-H = code.code[n+1:end,n+1:end]
+# J = symplectic_form(n)
+# code = GKP_Rep_Code(n, false, true)
+# # logical = vec(code.logical')
+# H = code.code[n+1:end,n+1:end]
 
-G = inv(H)
+# G = inv(H)
 
-tg = initialize_tanner_graph(H)
-#  logical[1] = 1
-#  logical = zeros(Int8, 1, tg.nv)
-pars = (tg, H, G, 0.7, samples, max_iter)
+# tg = initialize_tanner_graph(H)
+# #  logical[1] = 1
+# #  logical = zeros(Int8, 1, tg.nv)
+# pars = (tg, H, G, 0.7, samples, max_iter)
 
-points = []
-values = []
-for j in 1:5
-    for k in 1:5
-        for l in 1:5
-            push!(points,0.05*[j,k,l]+[1.6,2.,2.])
-            push!(values,cost(0.05*[j,k,l]+[1.6,2.,2.], pars))
-        end
-    end
-end
+# points = []
+# values = []
+# for j in 1:5
+#     for k in 1:5
+#         for l in 1:5
+#             push!(points,0.05*[j,k,l]+[1.6,2.,2.])
+#             push!(values,cost(0.05*[j,k,l]+[1.6,2.,2.], pars))
+#         end
+#     end
+# end
 
-points
-values
+# points
+# values
 
-using Plots
-Plots.plot(values)
+# using Plots
+# Plots.plot(values)
 
-points[sortperm(values)]
+# points[sortperm(values)]
