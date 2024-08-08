@@ -12,7 +12,7 @@ using Optim
 
 n = 7
 
-samples = 50_000
+samples = 10_000
 max_iter = 20
 
 @everywhere function cost(multipliers::Vector{Float64}, pars)
@@ -102,23 +102,24 @@ function optimize_rep_code_evo(n,σ, samples, max_iter)
     #  logical = zeros(Int8, 1, tg.nv)
     pars = (tg, H, G, σ, samples, max_iter)
     # starting_multipliers = ones(Float64, n)
-    # starting_multipliers = rand(n) .+ 0.5
-    starting_multipliers = 5*rand(n)
+    starting_multipliers = rand(n) .+ 0.5
+    # starting_multipliers = 5*rand(n)
     println(starting_multipliers)
-    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=50, show_trace=true, show_every=10)) 
+    return starting_multipliers, Evolutionary.optimize(x->(cost(x, pars)), starting_multipliers, CMAES(), Evolutionary.Options(iterations=100, show_trace=true, show_every=10)) 
 end
 
 
 ####### OPTIM OPTIMIZATION
-# starting_multipliers, results = optimize_rep_code_evo(n, 0.5, samples,max_iter)
+# starting_multipliers, results = optimize_rep_code(3, 0.5, samples,max_iter)
 # starting_multipliers'
 # Optim.minimizer(results)'
+# results.minimum
 
 
 ###### EVOLUTIONARY OPTIMIZATION
-starting_multipliers, results = optimize_rep_code_evo(n, 0.5, samples,max_iter)
-results.minimum
-results.minimizer
+# starting_multipliers, results = optimize_rep_code_evo(3, 0.5, samples,max_iter)
+# results.minimum
+# results.minimizer
 
 
 
@@ -142,7 +143,7 @@ matching_results = Dict(
 # σs = collect(0.6:0.3:2.1)
 σs = collect(0.5:0.1:2) ./sqrt(2*pi)
 
-distances = collect(3:2:7)
+distances = collect(3:2:13)
 
 failure_probs = Array{Float64}(undef, length(distances), length(σs))
 failure_probs_no_opt = Array{Float64}(undef, length(distances), length(σs))
@@ -161,6 +162,7 @@ for d in distances
     global sigma_ind = 1
     for σ in σs
         starting_multipliers, results = optimize_rep_code_evo(d, σ, samples,max_iter)
+        # starting_multipliers, results = optimize_rep_code(d, σ, samples,max_iter)
         failure_probs[distance_ind,sigma_ind] = 1 + results.minimum
         failure_probs_no_opt[distance_ind,sigma_ind] = 1 + just_run(d, σ, samples,max_iter)
         global sigma_ind += 1
@@ -177,6 +179,7 @@ for d in distances
     plot!(th_pl,σs,failure_probs_no_opt[distance_ind,:], label="noOpt, n = $d",markershape=:dtriangle, color=color1)
     plot!(th_pl,σs,matching_results["$d"], label="MWPM, n = $d",markershape=:xcross,color = color1)
     display(th_pl)
+    Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
     
     global distance_ind +=1 
     global jj +=3
@@ -185,6 +188,10 @@ end
 failure_probs
 display(th_pl)
 Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
+
+using NPZ
+npzwrite("examples/failure_probabilities_optimized_nearest_CMAES.txt",failure_probs)
+npzwrite("examples/failure_probabilities_nearest.txt",failure_probs_no_opt)
 #########################################################################
 #########################################################################
 #########################################################################
