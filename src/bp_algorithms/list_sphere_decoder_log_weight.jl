@@ -3,7 +3,7 @@
 #
 include("lsd_utils.jl")
 # Parameters for the List Sphere Decoding algorithm
-const W_MIN = 0.9
+const W_MIN = 1.0
 
 """
     lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
@@ -60,7 +60,14 @@ function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGrap
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    moment_matching!(vn.message, candidate_gaussians)
+    if length(D) == 0
+        println("Nothing found. vn.message.mean = $(vn.message.mean)")
+        println(msg_vector)
+        println("Number messages: $(length(msg_vector))")
+        # vn.message.mean = 0.0 # no candidate found
+    else
+        moment_matching!(vn.message, candidate_gaussians)
+    end
     bp_result[vn_idx] = vn.message.mean
 end
 
@@ -123,7 +130,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
 
     # Init float values
     Vinv = 0.0
-    β = 0.5
+    β = 2.0
 
 
     for i = 1:(length(msg_vector))
@@ -133,8 +140,8 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
         # println("Var & Period ", msg.var, " ", msg.period, " ")
-        β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
-        # β = max(β, 1 / sqrt(msg.var * msg.period^2))
+        # β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
+        β = max(β, 1 / sqrt(msg.var * msg.period^2))
     end
     # overwrite the last element of p_vector with the mean of the last message
     u_d = msg_vector[end].mean / msg_vector[end].var / sqrt(Vinv)

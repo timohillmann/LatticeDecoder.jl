@@ -1,4 +1,4 @@
-using LatticeAlgorithms
+import LatticeAlgorithms
 
 
 function qpqp_to_qqpp(M::AbstractMatrix)
@@ -14,8 +14,8 @@ function qpqp_to_qqpp(M::AbstractMatrix)
 end
 
 function surface_code_logicals(d::Int)
-    X = surface_code_X_logicals(d)
-    Z = surface_code_Z_logicals(d)
+    X =  LatticeAlgorithms.surface_code_X_logicals(d)
+    Z =  LatticeAlgorithms.surface_code_Z_logicals(d)
 
     tot_logicals = length(X) + length(Z)
 
@@ -31,7 +31,7 @@ function surface_code_logicals(d::Int)
 end
 
 function GKP_Surface_Code(d::Int)
-    H = qpqp_to_qqpp(surface_code_M(d))
+    H = qpqp_to_qqpp(LatticeAlgorithms.surface_code_M(d))
     L = surface_code_logicals(d)
     return QuantumCode(H, L)
 end

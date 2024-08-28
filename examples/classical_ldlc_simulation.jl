@@ -1,7 +1,7 @@
 using Distributed
-addprocs(6);
+# addprocs(6);
 @everywhere using LatticeDecoder
-using LatticeDecoder
+# using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -23,7 +23,7 @@ y = encode(b, G);
 
 y .+= sample_error(σ, n);
 
-serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10);
+serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10, "nearest");
 serial_dec = hard_decision(serial_bp_result, H);
 
 bp_result = run_belief_propagation!(tg, y, σ, 10);
@@ -109,19 +109,14 @@ function agresti_coull_confidence_interval(p, n, z=1.96)
 end
 
 using Plots
-samples = 1000;
+samples = 10_000;
 max_iter = 10;
-σ = lattice_capacity_std()
-p = plot()
-sigmas = range(σ, 0.85 * σ, 4)
-samples = 1000;
-max_iter = 50;
 σ = lattice_capacity_std();
 p = plot();
-sigmas = range(σ, 0.85 * σ, 6);
+sigmas = range(σ, 0.3 * σ, 7);
 
-d = 7;
-for n in [1000]
+d = 5;
+for n in [100, 256]
     H = classical_ldlc(d, n, true)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
 

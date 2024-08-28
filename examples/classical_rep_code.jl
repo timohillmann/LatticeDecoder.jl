@@ -1,6 +1,6 @@
-# using Distributed
-# addprocs(6);
-# @everywhere using LatticeDecoder
+using Distributed
+addprocs(6);
+@everywhere using LatticeDecoder
 # using LatticeDecoder
 
 @everywhere function random_bitstring(n)
@@ -77,14 +77,14 @@ end
 
 
 using Plots
-samples = 1_000;
+samples = 50_000;
 max_iter = 10;
-σ = lattice_capacity_std();
+σ = lattice_capacity_std() * sqrt(2);
 p = plot();
-sigmas = range(σ, 0.3 * σ, 7);
+sigmas = range(σ, 0.3 * σ, 8);
 
 d = 5;
-for n in [100]
+for n in [5, 13, 21]
     H = classical_rep_code(n)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
 

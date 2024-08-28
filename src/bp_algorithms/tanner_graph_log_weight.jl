@@ -29,6 +29,7 @@ mutable struct VariableNode <: AbstractNode
     pos_in_check_neighbour::Vector{Int64} # Position in the neighbours array of the neighbouring check node objects
 end
 
+include("lsd_utils_alloc_free.jl")
 """
 Tanner graph structure of the code of Int64erest.
 """
@@ -41,9 +42,11 @@ mutable struct TannerGraph
     bp_result::Vector{Float64}
     search_interval::Float64
     schedule::Vector{Int64}
+    lsd_mem::Dict{Int64,ListSphereDecodingMemory}
 
-    function TannerGraph(var_nodes::Vector{VariableNode}, check_nodes::Vector{CheckNode}, var_node_to_posit::Dict{Int64,Int64})
-        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), 1.5, collect(1:length(var_nodes)))
+    function TannerGraph(var_nodes::Vector{VariableNode}, check_nodes::Vector{CheckNode}, var_node_to_posit::Dict{Int64,Int64}, mem_dict::Dict{Int64,ListSphereDecodingMemory})
+        new(var_nodes, check_nodes, var_node_to_posit, length(var_nodes), length(check_nodes), Vector{Float64}(undef, length(var_nodes)), 1.5, collect(1:length(var_nodes)),
+            mem_dict)
     end
 
 end
@@ -66,10 +69,13 @@ Initialize the Tanner graph for LDLC decoding.
 function initialize_tanner_graph(H::SparseMatrixCSC)
     n, m = size(H) # rows, columns
 
+    mem_dict = create_lsd_memory(H)
+
     tg = TannerGraph(
         Vector{VariableNode}(undef, m),
         Vector{CheckNode}(undef, n),
         Dict{Int64,Int64}(),
+        mem_dict
     )
 
     node_to_stab = Dict{Int64,Vector{Tuple{Int64,Float64}}}()
@@ -112,6 +118,7 @@ function initialize_tanner_graph(H::SparseMatrixCSC)
     end
     return tg
 end
+
 
 initialize_tanner_graph(H::Matrix) = initialize_tanner_graph(sparse(H))
 initialize_tanner_graph(H::QuantumCode) = initialize_tanner_graph(H.code)

@@ -1,5 +1,6 @@
 include("tanner_graph_log_weight.jl")
 include("list_sphere_decoder_log_weight.jl")
+include("lsd_log_weight_alloc_free.jl")
 
 VarNodeAlloc = FourGaussianLogAlloc(gaussian_log_weight(0.0, 0.5))
 
@@ -29,6 +30,33 @@ function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Fl
         end
     end
 end
+
+
+"""
+    initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Float64)
+
+Initialize the messages of the Tanner graph for LDLC decoding.
+"""
+function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64})
+
+    # Set variable node messages to received channel message
+    for i in 1:length(tg.var_nodes)
+        tg.var_nodes[i].message.mean = syndrome[i]
+        tg.var_nodes[i].message.var = σ[i]^2
+    end
+
+    # Collect the messages from the neighbouring variable nodes
+    for i in 1:length(tg.check_nodes)
+        check_node = tg.check_nodes[i]
+
+        for idx in 1:length(check_node.neighbours)
+            vn_idx, edge_weight = check_node.neighbours[idx]
+            check_node.messages[idx].mean = 1.0 * tg.var_nodes[vn_idx].message.mean
+            check_node.messages[idx].var = 1.0 * tg.var_nodes[vn_idx].message.var
+        end
+    end
+end
+
 
 """
     check_node_iterations!(tg::TannerGraph)
@@ -96,6 +124,13 @@ function variable_node_iterations_lsd!(tg::TannerGraph)
     end
 end
 
+
+function variable_node_iterations_lsd_mem!(tg::TannerGraph)
+    for i = 1:tg.nv
+        lsd_variable_node_messages_alloc_free!(tg, i)
+    end
+    return
+end
 
 """
     variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
@@ -180,6 +215,18 @@ end
 function decision_step_lsd!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
         _lsd_variable_node_decision!(tg.bp_result, tg, i)
+    end
+end
+
+"""
+    decision_step_lsd_mem!(tg::TannerGraph)
+
+    Compute the decision for each variable node in the Tanner graph using the LSD algorithm.
+
+"""
+function decision_step_lsd_mem!(tg::TannerGraph)
+    for i in 1:length(tg.var_nodes)
+        _lsd_variable_node_decision_alloc_free!(tg.bp_result, tg, i)
     end
 end
 
@@ -295,8 +342,10 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
         decision_step! = decision_step_nearest!
 
     elseif decoder == "lsd"
-        variable_node_iterations! = variable_node_iterations_lsd!
-        decision_step! = decision_step_lsd!
+        variable_node_iterations! = variable_node_iterations_lsd_mem!
+        # variable_node_iterations! = variable_node_iterations_lsd!
+        # decision_step! = decision_step_lsd!
+        decision_step! = decision_step_lsd_mem!
 
     else
         error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")

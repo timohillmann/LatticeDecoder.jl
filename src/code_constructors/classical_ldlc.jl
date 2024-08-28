@@ -285,3 +285,6 @@ function load_ldlc(d, n)
     return code
 end
 
+function save_ldlc(code, d, n)
+    npzwrite("/Users/timo/Documents/GitHub/LatticeDecoder.jl/data/generator_matrices/ldlc/d_$(d)_n_$(n).npz", code)
+end

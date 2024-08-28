@@ -1,5 +1,3 @@
-
-
 ACCEPTANCE_THRESHOLD = 1E-5
 
 struct QuantumCode
@@ -85,3 +83,16 @@ Construct the GKP-Repetition code QuantumCode object with `d` modes. If `bit_fli
 function GKP_Rep_Code(d::Int, bit_flip=false, reduced=false)
     return QuantumCode(gkp_rep_code(d, bit_flip, reduced), rep_code_logical(d, bit_flip))
 end
+
+
+function GKP_Rep_Rec_Code(n::Int)
+    M = LatticeAlgorithms.rep_rec(n)
+    Mperp = LatticeAlgorithms.GKP_logical_operator_generator_canonical(M)
+
+    logicals = Mperp[1:2, :]
+
+    M = qpqp_to_qqpp(M)
+    logicals = qpqp_to_qqpp(logicals)
+    return QuantumCode(M, logicals)
+end
+

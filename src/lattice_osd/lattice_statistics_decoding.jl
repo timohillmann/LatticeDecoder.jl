@@ -34,8 +34,8 @@ end
 
 
 function lll_basis_reduction(G::AbstractMatrix{Float64})
-    B, _ = LLLplus.hkz(G,)
-    return B
+    B, _ = LLLplus.hkz(G',)
+    return B'
 end
 
 

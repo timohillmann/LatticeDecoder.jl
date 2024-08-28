@@ -3,11 +3,12 @@ module LatticeDecoder
 export stack_gkp_generator
 include("lattice_tools/concatenated_code_reduction.jl")
 # Code code_constructors
-export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code
-include("code_constructors/rep_codes.jl")
-
 export GKP_Surface_Code
 include("code_constructors/surface_codes.jl")
+
+export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code, GKP_Rep_Rec_Code
+include("code_constructors/rep_codes.jl")
+
 
 export lattice_statistics_decoding, LatticeStatisticsDecoding, lattice_statistics_decoding!, local_search!
 include("lattice_osd/lattice_statistics_decoding.jl")

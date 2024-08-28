@@ -33,7 +33,7 @@ end
 
 Update the messages of a variable node in a Tanner graph using the LSD algorithm.
 """
-function update_variable_node_lsd!(tg::TannerGraph, vn_idx::Int64)
+function update_variable_node_lsd_mem!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     # all check nodes connected to this variable node send their messages to it
     for j = 1:length(vn.neighbours)
@@ -41,7 +41,7 @@ function update_variable_node_lsd!(tg::TannerGraph, vn_idx::Int64)
         vn_pos_idx = vn.pos_in_check_neighbour[j]
         check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
     end
-    variable_node_messages_allocationless!(tg, vn_idx)
+    lsd_variable_node_messages_alloc_free!(tg, vn_idx)
 end
 
 
@@ -134,8 +134,9 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
         decision_step! = decision_step_nearest!
 
     elseif decoder == "lsd"
-        update_variable_node! = update_variable_node_lsd!
-        decision_step! = decision_step_lsd!
+        update_variable_node! = update_variable_node_lsd_mem!
+        # decision_step! = decision_step_lsd!
+        decision_step! = decision_step_lsd_mem!
 
     else
         error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
