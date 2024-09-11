@@ -493,5 +493,9 @@ function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::
 
     messages_trace[end, :] = message
 
-    return messages_trace
+
+
+    # println("bp result: ", tg.bp_result)
+
+    return messages_trace, tg.bp_result
 end

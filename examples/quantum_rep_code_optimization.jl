@@ -13,7 +13,7 @@ using Optim
 n = 3
 
 samples = 10_000
-max_iter = 30
+max_iter = 20
 
 @everywhere function cost(multipliers::Vector{Float64}, pars)
     tg, H, G, σs, samples, max_iter = pars
@@ -144,7 +144,7 @@ matching_results = Dict(
 
 
 # σs = collect(0.6:0.3:2.1)
-σs = collect(0.5:0.1:2) ./sqrt(2*pi)
+σs = collect(0.5:0.2:2) ./sqrt(2*pi)
 
 distances = collect(3:2:13)
 
@@ -180,9 +180,9 @@ for d in distances
     color1 = series[jj][:seriescolor]
 
     plot!(th_pl,σs,failure_probs_no_opt[distance_ind,:], label="noOpt, n = $d",markershape=:dtriangle, color=color1)
-    plot!(th_pl,σs,matching_results["$d"], label="MWPM, n = $d",markershape=:xcross,color = color1)
+    plot!(th_pl,matching_results["sigmas"]./sqrt(2π),matching_results["$d"], label="MWPM, n = $d",markershape=:xcross,color = color1)
     display(th_pl)
-    Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
+    Plots.savefig(th_pl,"optimized_th_plot_rep_lsd.pdf")
     
     global distance_ind +=1 
     global jj +=3
@@ -190,11 +190,11 @@ end
 
 failure_probs
 display(th_pl)
-Plots.savefig(th_pl,"optimized_th_plot_rep.pdf")
+Plots.savefig(th_pl,"optimized_th_plot_rep_lsd.pdf")
 
 using NPZ
-npzwrite("results/failure_probabilities_optimized_nearest_CMAES.txt",failure_probs)
-npzwrite("results/failure_probabilities_nearest.txt",failure_probs_no_opt)
+npzwrite("results/failure_probabilities_optimized_lsd_CMAES.txt",failure_probs)
+npzwrite("results/failure_probabilities_lsd.txt",failure_probs_no_opt)
 
 exit()
 #########################################################################

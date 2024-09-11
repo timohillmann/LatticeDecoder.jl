@@ -110,7 +110,8 @@ function produce_trace(n, σ, max_iter)
         tg = initialize_tanner_graph(H)
 
         y = sample_error(σ, tg.nv)
-        return run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "nearest")
+        println("y = $y")
+        return run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "lsd")
 
 
 end
@@ -118,12 +119,12 @@ end
 
 n = 3
 σ = 0.3
-iterations = 5
+iterations = 3
 
 
-messages_matrix = produce_trace(n, σ, iterations)
+messages_matrix,bp_result = produce_trace(n, σ, iterations);
 
-size(messages_matrix)
+# size(messages_matrix)
 
 messages_plot = plot(layout=(size(messages_matrix)[1]-1, size(messages_matrix)[2]), legend=false,yaxis = false, size=(200*n, 100*iterations),left_margin=0mm)
 
@@ -138,3 +139,6 @@ for iter in 1:(size(messages_matrix)[1]-1)
 end
 
 display(messages_plot)
+
+#TODO: I would like to check whether BP solves CVP, at least most of the time, 
+# that is if I compute \bar{b} = 
