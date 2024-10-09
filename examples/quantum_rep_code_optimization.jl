@@ -10,11 +10,6 @@ using Optim
 
 # σs = range(0.5, 2.0, 6)
 
-n = 3
-
-samples = 10_000
-max_iter = 20
-
 @everywhere function cost(multipliers::Vector{Float64}, pars)
     tg, H, G, σs, samples, max_iter = pars
    
@@ -23,7 +18,7 @@ max_iter = 20
     success = @distributed (+) for i = 1:samples
         y = sample_error(σ, tg.nv)
         # bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "nearest", search_interval=1/sqrt(2))
-        bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "lsd")
+        bp_result = run_belief_propagation!(tg, y, σ*multipliers, max_iter, "nearest")
 
         dec = hard_decision(bp_result, H)
         res_err = G * dec
@@ -45,7 +40,10 @@ end
         code = GKP_Rep_Code(n, false, true)
         # logical = vec(code.logical')
         H = code.code[n+1:end,n+1:end]
-    
+        H[1,1] = 1/sqrt(2)
+        # H[1,end] = 1/sqrt(2)
+        H[1,3] = 1/sqrt(2)
+        # display(Int64.(sqrt(2)*H))
         G = inv(H)
     
         tg = initialize_tanner_graph(H)
@@ -54,7 +52,7 @@ end
         success = @distributed (+) for i = 1:samples
             y = sample_error(σ, tg.nv)
             # bp_result = run_belief_propagation!(tg, y, σ, max_iter, "nearest", search_interval=1/sqrt(2))
-            bp_result = run_belief_propagation!(tg, y, σ, max_iter, "lsd")
+            bp_result = run_belief_propagation!(tg, y, σ, max_iter, "nearest";search_interval=sqrt(2))
             dec = hard_decision(bp_result, H)
             res_err = G * dec
             # println(res_err)
@@ -83,9 +81,9 @@ function optimize_rep_code(n,σ, samples, max_iter; time_limit=NaN)
     pars = (tg, H, G, σ, samples, max_iter)
     # starting_multipliers = ones(Float64, n)
     # starting_multipliers = rand(n) .+ 0.5
-    starting_multipliers = 5*rand(n)
+    starting_multipliers = 2*rand(n)
     println(starting_multipliers)
-    return starting_multipliers, Optim.optimize(x->(cost(x, pars)), starting_multipliers, method=NelderMead(), show_trace=true, allow_f_increases=true; time_limit = time_limit) #time_limit=60.0
+    return starting_multipliers, Optim.optimize(x->(cost(x, pars)), starting_multipliers, method=NelderMead(), show_trace=true, show_every=50, allow_f_increases=true, iterations=500; time_limit = time_limit) #time_limit=60.0
     # return starting_multipliers, optimize(x->(cost(x, pars)), zeros(Float64, n), 5*ones(Float64, n), starting_multipliers, Fminbox(NelderMead()), Optim.Options(show_trace=true)) #time_limit=60.0    # 
     
 end
@@ -146,7 +144,7 @@ matching_results = Dict(
 # σs = collect(0.6:0.3:2.1)
 σs = collect(0.5:0.2:2) ./sqrt(2*pi)
 
-distances = collect(3:2:13)
+distances = collect(3:4:11)
 
 failure_probs = Array{Float64}(undef, length(distances), length(σs))
 failure_probs_no_opt = Array{Float64}(undef, length(distances), length(σs))
@@ -158,15 +156,20 @@ sigma_ind = 1
 jj = 1
 
 
-th_pl = Plots.plot()
+samples = 50_000
+max_iter = 20
+
+
+th_pl = Plots.plot(legend=:bottomright)
 
 
 for d in distances
     global sigma_ind = 1
     for σ in σs
-        starting_multipliers, results = optimize_rep_code_evo(d, σ, samples,max_iter)
-        # starting_multipliers, results = optimize_rep_code(d, σ, samples,max_iter)
+        # starting_multipliers, results = optimize_rep_code_evo(d, σ, samples,max_iter)
+        starting_multipliers, results = optimize_rep_code(d, σ, samples,max_iter)
         failure_probs[distance_ind,sigma_ind] = 1 + results.minimum
+        # failure_probs[distance_ind,sigma_ind] = 0
         failure_probs_no_opt[distance_ind,sigma_ind] = 1 + just_run(d, σ, samples,max_iter)
         global sigma_ind += 1
     end
@@ -182,7 +185,7 @@ for d in distances
     plot!(th_pl,σs,failure_probs_no_opt[distance_ind,:], label="noOpt, n = $d",markershape=:dtriangle, color=color1)
     plot!(th_pl,matching_results["sigmas"]./sqrt(2π),matching_results["$d"], label="MWPM, n = $d",markershape=:xcross,color = color1)
     display(th_pl)
-    Plots.savefig(th_pl,"optimized_th_plot_rep_lsd.pdf")
+    Plots.savefig(th_pl,"optimized_th_plot_rep_nearest_nelderMead.pdf")
     
     global distance_ind +=1 
     global jj +=3
@@ -190,7 +193,7 @@ end
 
 failure_probs
 display(th_pl)
-Plots.savefig(th_pl,"optimized_th_plot_rep_lsd.pdf")
+Plots.savefig(th_pl,"optimized_th_plot_rep_nearest_nelderMead.pdf")
 
 using NPZ
 npzwrite("results/failure_probabilities_optimized_lsd_CMAES.txt",failure_probs)
