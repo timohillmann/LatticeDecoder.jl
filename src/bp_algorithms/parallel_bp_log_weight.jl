@@ -470,7 +470,15 @@ function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::
     # initilization
     initialize_messages!(tg, message, σ)
 
-    messages_trace = Array{Any}(undef, max_iter+1,length(tg.var_nodes))
+    messages_trace = Array{Any}(undef, max_iter+2,length(tg.var_nodes))
+
+    # add messages to the matrix
+    # for node_idx in 1:length(tg_copy.var_nodes)
+    for node_idx in 1:tg.nv
+        vn = tg.var_nodes[node_idx]
+        messages_trace[1, node_idx] = gaussian_log_weight(vn.message.mean, vn.message.var)
+    end
+
     # basic iteration
     for i in 1:max_iter
         # println("starting check node iteration $i")
@@ -481,21 +489,19 @@ function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::
         # add messages to the matrix
         # for node_idx in 1:length(tg_copy.var_nodes)
         for node_idx in 1:tg.nv
-            messages_trace[i, node_idx] = simulate_decision(tg,node_idx)
+            messages_trace[i+1, node_idx] = simulate_decision(tg,node_idx)
         end
     end
 
     # final decision
-    decision_step!(tg)
     for node_idx in 1:tg.nv
         messages_trace[end-1, node_idx] = simulate_decision(tg,node_idx)
     end
-
+    
     messages_trace[end, :] = message
-
-
-
+    
     # println("bp result: ", tg.bp_result)
-
+    
+    decision_step!(tg)
     return messages_trace, tg.bp_result
 end
