@@ -1,9 +1,8 @@
 using LatticeDecoder
 using Plots
-using Graphs
-using GraphPlot
 using Colors
-
+using LaTeXStrings
+using Measures
 
 function gaussian_pdf(x, μ, σ²)
     # Check for valid variance
@@ -18,31 +17,6 @@ function gaussian_pdf(x, μ, σ²)
     return coefficient * exp(exponent)
 end
 
-function plot_tanner_graph(A::AbstractMatrix)
-    m, n = size(A)
-    g = SimpleDiGraph(m + n)
-
-    for i in 1:m
-        for j in 1:n
-            if A[i, j] != 0
-                add_edge!(g, i, m + j)
-            end
-        end
-    end
-    node_colors = [colorant"lightblue" for _ in 1:(m+n)]
-    node_colors[1:m] .= colorant"lightgreen"
-    locs_x = vcat(zeros(m), ones(n))
-    locs_y = vcat(range(0, 1, length=m), range(0, 1, length=n))
-    edge_labels = Dict()
-    for e in edges(g)
-        i, j = src(e), dst(e)
-        if j > m
-            edge_labels[e] = string(A[i, j-m])
-        end
-    end
-    
-    return gplot(g, locs_x, locs_y, nodefillc=node_colors, nodestrokec=colorant"black", nodestrokelw=1,  edgelabel=edge_labels)
-end
 
 
 # function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
@@ -97,11 +71,13 @@ end
 
 
 function produce_trace(n, σ, max_iter)
-        println("n = ", n)
-        J = symplectic_form(n)
         code = GKP_Rep_Code(n, false, true)
         # logical = vec(code.logical')
         H = code.code[n+1:end,n+1:end]
+        H[1,1] = 1/sqrt(2)
+        # H[1,end]=1/sqrt(2)
+        H[1,3]=1/sqrt(2)
+        display(sqrt(2)*H)
         # tg_plot = plot_tanner_graph(H)
         # display(tg_plot)
 
@@ -111,34 +87,56 @@ function produce_trace(n, σ, max_iter)
 
         y = sample_error(σ, tg.nv)
         println("y = $y")
-        return run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "lsd")
-
+        
+        messages_matrix,bp_result = run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "lsd")
+        decoded = G*hard_decision(bp_result,H)
+        return messages_matrix, bp_result, decoded
+        
 
 end
 
 
 n = 3
-σ = 0.3
+σ = 0.7 /(2*sqrt(pi))
 iterations = 3
 
 
-messages_matrix,bp_result = produce_trace(n, σ, iterations);
+messages_matrix,bp_result, decoded = produce_trace(n, σ, iterations);
 
-# size(messages_matrix)
-
-messages_plot = plot(layout=(size(messages_matrix)[1]-1, size(messages_matrix)[2]), legend=false,yaxis = false, size=(200*n, 100*iterations),left_margin=0mm)
-
-for iter in 1:(size(messages_matrix)[1]-1)
-    for variable in 1:size(messages_matrix)[2]
-        mean = messages_matrix[iter,variable].mean
-        var = messages_matrix[iter,variable].var 
-        x_values = range(-1, 1, length=2000)
-        plot!(messages_plot[iter,variable], x_values, gaussian_pdf.(x_values,mean,var))
-        vline!(messages_plot[iter,variable], [messages_matrix[end,variable]]) 
+function plot_bp_messages(messages_matrix)
+    iterations = size(messages_matrix)[1]-2
+    nvars = size(messages_matrix)[2]
+    
+    tick_vals = [-sqrt(2), -sqrt(2)/2, 0, sqrt(2)/2, sqrt(2)]
+    tick_labels = [L"-\sqrt{2}",L"-\sqrt{2}/2",L"0",L"\sqrt{2}/2",L"\sqrt{2}"]
+    ticks = (tick_vals, tick_labels )
+    messages_plot = plot(layout=grid(iterations+1, nvars),legend=false, yaxis = false, size=(300*nvars, 200*iterations), xticks=ticks, left_margin=10mm, bottom_margin=10mm)
+    for iter in 1:(iterations+1)
+        for variable in 1:nvars
+            mean = messages_matrix[iter,variable].mean
+            var = messages_matrix[iter,variable].var 
+            x_values = range(-sqrt(2), sqrt(2), length=2000)
+            plot!(messages_plot[iter,variable], x_values, gaussian_pdf.(x_values,mean,var),linewidth=1.7)
+            if variable == 1
+                ylabel!(messages_plot[iter,variable],"it $(iter-1)")
+            end
+            if iter == 1
+                title!(messages_plot[iter,variable],"var $(variable)")
+            end
+            vline!(messages_plot[iter,variable], [messages_matrix[end,variable]],linewidth=1.7) 
+        end
     end
+
+    for variable in 1:size(messages_matrix)[2]
+        vline!(messages_plot[iterations+1,variable], [Float64(decoded[variable])],linewidth=2.2, linestyle=:dash) 
+    end
+
+    return messages_plot
 end
 
-display(messages_plot)
+display(plot_bp_messages(messages_matrix))
+
 
 #TODO: I would like to check whether BP solves CVP, at least most of the time, 
-# that is if I compute \bar{b} = 
+
+
