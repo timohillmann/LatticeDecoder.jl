@@ -1,5 +1,5 @@
 using Distributed
-addprocs(1);
+addprocs(5);
 @everywhere using NormalForms
 @everywhere using LLLplus
 @everywhere using LatticeDecoder
@@ -45,7 +45,7 @@ addprocs(1);
         # println(2 * logical * res)
         # printstyled("Log Com. Check: $((round.(Int, abs.(logical * res))))", color=:green)
 
-        _errs = count_symbol_errors(dec)
+        _errs = count_symbol_errors(res)
         if _errs > 0
             _errs
         else
@@ -67,12 +67,12 @@ end
 
 global result_dict = Dict()
 reduced_decoding = true
-path = "results/sc_code_221024_classical.csv"
+path = "results/sc_code_141124_classical_b.csv"
 for decoder in ["lsd"]
     for local_search in [false]
-        for schedule in ["parallel", "serial"]
+        for schedule in ["serial"]
             for dec_style in ["received_vector"]
-                for n in [15, 17]
+                for n in [3, 5, 7, 9, 11, 13]
                     printstyled("Running experiment for n = $n\n", color=:red)
                     code = GKP_Surface_Code(n, true)
                     logical = code.logical
@@ -95,14 +95,14 @@ for decoder in ["lsd"]
                         # TODO: G <- lll(G)
                     end
 
-                    sigmas = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] ./ sqrt(2 * pi) # [0.4, 0.5, 0.6] ./ sqrt(2 * pi)
+                    sigmas = [0.40, 0.45] ./ sqrt(2 * pi) # [0.4, 0.5, 0.6] ./ sqrt(2 * pi)
                     n_samples = 1_000
                     results = qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis, iterations,
                         decoder, dec_style, search_radius)
 
                     for (σ, res) in zip(sigmas, results)
                         json_data = metadata(
-                            code="rep_code",
+                            code="sc_code",
                             schedule=schedule,
                             decoder=decoder,  # "lsd",
                             d=n,
@@ -112,8 +112,10 @@ for decoder in ["lsd"]
                             sigma=σ,
                             iterations=iterations,
                             decoding_style=dec_style,
+                            nbits=size(H, 2),
                         )
-                        add_data!(path, shots=n_samples * size(H, 1), errors=res, decoder=decoder, json_metadata=json_data)
+                        # we add shots = n_samples * nbits to plots the correct statistics, the symbol error rate.
+                        add_data!(path, shots=n_samples * size(H, 2), errors=res, decoder=decoder, json_metadata=json_data)
                     end
 
                     # save results to file

@@ -112,6 +112,7 @@ for decoder in ["nearest"]
                             sigma=σ,
                             iterations=iterations,
                             decoding_style=dec_style,
+                            nbits=size(H, 2),
                         )
                         add_data!(path, shots=n_samples, errors=res, decoder=decoder, json_metadata=json_data)
                     end

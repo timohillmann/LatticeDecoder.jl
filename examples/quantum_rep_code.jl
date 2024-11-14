@@ -70,11 +70,11 @@ end
 
 global result_dict = Dict()
 reduced_decoding = true
-path = "results/ring_code_031024_$(reduced_decoding)_weight_2.csv"
+path = "results/ring_code_141124_$(reduced_decoding)_weight_2.csv"
 for r = 1:1
-    for decoder in ["lsd"]
-        for local_search in [false]
-            for schedule in ["serial"]
+    for decoder in ["nearest", "lsd"]
+        for local_search in [true]
+            for schedule in ["parallel"]
                 for dec_style in ["received_vector"]
                     for n in [3, 5] # [3, 5, 7, 9, 11, 13, 15]
                         printstyled("Running experiment for n = $n, r = $r\n", color=:red)
@@ -88,7 +88,7 @@ for r = 1:1
                         H = code.code[n+1:end, n+1:end]
                         # H[1, 1:2] = [1, -1] / sqtr(2)
                         H[1, 1] = 1.0 / sqrt(2)
-                        H[1, 3] = 1.0 / sqrt(2)
+                        H[1, 2] = -1.0 / sqrt(2)
                         if reduced_decoding
                             G = round.(sqrt(2) * inv(H)) / sqrt(2)
                         else
@@ -118,6 +118,7 @@ for r = 1:1
                                 sigma=σ,
                                 iterations=iterations,
                                 decoding_style=dec_style,
+                                nbits=size(H, 2)
                             )
                             add_data!(path, shots=n_samples, errors=res, decoder=decoder, json_metadata=json_data)
                         end
