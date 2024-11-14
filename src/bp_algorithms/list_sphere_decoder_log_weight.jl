@@ -3,7 +3,7 @@
 #
 include("lsd_utils.jl")
 # Parameters for the List Sphere Decoding algorithm
-const W_MIN = 0.9
+const W_MIN = 0.95
 
 """
     lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
@@ -60,7 +60,14 @@ function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGrap
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    moment_matching!(vn.message, candidate_gaussians)
+    if length(D) == 0
+        println("Nothing found. vn.message.mean = $(vn.message.mean)")
+        println(msg_vector)
+        println("Number messages: $(length(msg_vector))")
+        # vn.message.mean = 0.0 # no candidate found
+    else
+        moment_matching!(vn.message, candidate_gaussians)
+    end
     bp_result[vn_idx] = vn.message.mean
 end
 
@@ -123,7 +130,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
 
     # Init float values
     Vinv = 0.0
-    β = 0.5
+    β = 3.5
 
 
     for i = 1:(length(msg_vector))
@@ -164,6 +171,14 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
         mean *= var
         candidate_gaussians[i] = gaussian_log_weight(mean, copy(var), log_weight)
     end
+
+    # rearrange ordering of gaussians based on distace
+    # inds = sortperm(D)
+    # candidate_gaussians = candidate_gaussians[inds]
+    # if length(candidate_gaussians) > 2
+    #     println("Shorteninng output.")
+    #     candidate_gaussians = candidate_gaussians[1:2]
+    # end
     return candidate_gaussians
 end
 
@@ -181,8 +196,9 @@ function _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
 
     L, D = simplified_lsd(lsd_inputs)
     can_gaussian = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+
     if length(D) == 0
-        # println("Nothing found.")
+        println("Nothing found.")
     else
         moment_matching!(vn.message, can_gaussian)
     end

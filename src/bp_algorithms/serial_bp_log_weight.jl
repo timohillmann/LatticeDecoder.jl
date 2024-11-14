@@ -41,7 +41,7 @@ function update_variable_node_lsd!(tg::TannerGraph, vn_idx::Int64)
         vn_pos_idx = vn.pos_in_check_neighbour[j]
         check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
     end
-    variable_node_messages_allocationless!(tg, vn_idx)
+    lsd_variable_node_messages!(tg, vn_idx)
 end
 
 
@@ -109,7 +109,7 @@ function update_reliability_schedule!(tg::TannerGraph)
     @inbounds for i in 1:length(tg.var_nodes)
         avg_reliability!(tg.bp_result, tg, i)
     end
-    sortperm!(tg.schedule, tg.bp_result, rev=true)
+    sortperm!(tg.schedule, tg.bp_result, rev=false)
 end
 
 """
@@ -162,3 +162,67 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
 end
 
 # run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, ) = run_serial_belief_propagation!(tg, message, σ, max_iter)
+
+
+
+##################################################################
+##################################################################
+##################################################################
+
+
+function run_serial_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+
+    if decoder == "nearest"
+        update_variable_node! = update_variable_node_nearest!
+        decision_step! = decision_step_nearest!
+        simulate_decision = variable_node_decision_simulated_nearest
+
+    elseif decoder == "lsd"
+        update_variable_node! = update_variable_node_lsd!
+        decision_step! = decision_step_lsd!
+        simulate_decision = variable_node_decision_simulated_lsd
+
+    else
+        error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
+    end
+
+
+
+    # initilization
+    initialize_messages!(tg, message, σ)
+    tg.search_interval = search_interval
+
+
+    messages_trace = Array{Any}(undef, max_iter + 2, length(tg.var_nodes))
+
+    for node_idx in 1:tg.nv
+        messages_trace[1, node_idx] = simulate_decision(tg, node_idx)
+    end
+
+    # basic iteration
+    for i in 1:max_iter
+        # printstyled("Iteration: $i\n", color=:blue)
+        update_reliability_schedule!(tg)
+        for vn_idx in tg.schedule
+            update_variable_node!(tg, vn_idx)
+        end
+
+        for node_idx in 1:tg.nv
+            messages_trace[i+1, node_idx] = simulate_decision(tg, node_idx)
+        end
+
+    end
+    # final decision
+    for node_idx in 1:tg.nv
+        messages_trace[end-1, node_idx] = simulate_decision(tg, node_idx)
+    end
+
+    decision_step!(tg)
+    messages_trace[end, :] = message
+
+
+
+    # println("bp result: ", tg.bp_result)
+
+    return messages_trace, tg.bp_result
+end

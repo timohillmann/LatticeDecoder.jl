@@ -30,6 +30,33 @@ function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Fl
     end
 end
 
+
+"""
+    initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64})
+
+Initialize the messages of the Tanner graph for LDLC decoding. NOTE: here the variances can be different for different variable nodes
+"""
+function initialize_messages!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Vector{Float64})
+
+    # Set variable node messages to received channel message
+    for i in 1:length(tg.var_nodes)
+        tg.var_nodes[i].message.mean = syndrome[i]
+        tg.var_nodes[i].message.var = σ[i]^2
+    end
+
+    # Collect the messages from the neighbouring variable nodes
+    for i in 1:length(tg.check_nodes)
+        check_node = tg.check_nodes[i]
+
+        for idx in 1:length(check_node.neighbours)
+            vn_idx, edge_weight = check_node.neighbours[idx]
+            check_node.messages[idx].mean = 1.0 * tg.var_nodes[vn_idx].message.mean
+            check_node.messages[idx].var = 1.0 * tg.var_nodes[vn_idx].message.var
+        end
+    end
+end
+
+
 """
     check_node_iterations!(tg::TannerGraph)
 
@@ -179,7 +206,7 @@ end
 """
 function decision_step_lsd!(tg::TannerGraph)
     for i in 1:length(tg.var_nodes)
-        _lsd_variable_node_decision!(tg.bp_result, tg, i)
+        _lsd_variable_node_decision!(tg, i)
     end
 end
 
@@ -323,4 +350,99 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
     decision_step!(tg)
 
     return tg.bp_result
+end
+
+
+##################################################################
+##################################################################
+##################################################################
+
+function variable_node_decision_simulated_nearest(tg::TannerGraph, vn_idx::Int64)
+    vn = tg.var_nodes[vn_idx]
+
+    gL = gaussian_log_weight(vn.message.mean, vn.message.var)
+    gR = gaussian_log_weight(vn.message.mean, vn.message.var)
+
+    for i = 1:length(vn.messages)
+        cn_idx, edge_weight = vn.neighbours[i]
+        g1, g2 = nearest(vn.messages[i], vn.message.mean, edge_weight, tg.search_interval)
+        prod!(gL, g1)
+        prod!(gR, g2)
+    end
+
+    return sum(gL, gR)
+end
+
+function variable_node_decision_simulated_lsd(tg::TannerGraph, vn_idx::Int64)
+    # println("LSD Variable Node Decision")
+    vn = tg.var_nodes[vn_idx]
+    msg_vector = _collect_msg_vector(vn)
+    lsd_inputs = ListSphereDecodingInput(msg_vector)
+    L, D = simplified_lsd(lsd_inputs)
+    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
+    # message = copy(vn.message)
+    # moment_matching!(message, candidate_gaussians)
+    # return message
+    return moment_matching(candidate_gaussians)
+end
+
+
+
+function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+
+    if decoder == "nearest"
+        variable_node_iterations! = variable_node_iterations_nearest!
+        decision_step! = decision_step_nearest!
+        simulate_decision = variable_node_decision_simulated_nearest
+
+    elseif decoder == "lsd"
+        variable_node_iterations! = variable_node_iterations_lsd!
+        decision_step! = decision_step_lsd!
+        simulate_decision = variable_node_decision_simulated_lsd
+
+    else
+        error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
+    end
+
+
+
+    # set the search interval
+    tg.search_interval = search_interval
+    # println("initialize variable messages")
+    # initilization
+    initialize_messages!(tg, message, σ)
+
+    messages_trace = Array{Any}(undef, max_iter + 2, length(tg.var_nodes))
+
+    for node_idx in 1:tg.nv
+        messages_trace[1, node_idx] = simulate_decision(tg, node_idx)
+    end
+
+    # basic iteration
+    for i in 1:max_iter
+        # println("starting check node iteration $i")
+        check_node_iterations!(tg)
+        # println("starting th variable node iteration $i")
+        variable_node_iterations!(tg)
+
+        # add messages to the matrix
+        # for node_idx in 1:length(tg_copy.var_nodes)
+        for node_idx in 1:tg.nv
+            messages_trace[i+1, node_idx] = simulate_decision(tg, node_idx)
+        end
+    end
+
+    # final decision
+    for node_idx in 1:tg.nv
+        messages_trace[end-1, node_idx] = simulate_decision(tg, node_idx)
+    end
+
+    decision_step!(tg)
+    messages_trace[end, :] = message
+
+
+
+    # println("bp result: ", tg.bp_result)
+
+    return messages_trace, tg.bp_result
 end

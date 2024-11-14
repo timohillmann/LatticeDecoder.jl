@@ -47,7 +47,7 @@ end
 end
 
 
-@everywhere function random_encoding_experiment(H, σ, max_iter, samples)
+@everywhere function random_encoding_experiment(H, σ, max_iter, samples, decoder)
     errors = 0
     n = size(H, 1)
     b = zeros(Int64, n)
@@ -58,8 +58,8 @@ end
         random_bitstring!(b, n)
         y = encode(b, G)
         y .+= sample_error(σ, n)
-        # bp_result = run_belief_propagation!(tg, y, σ, max_iter)
-        bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter)
+        bp_result = run_belief_propagation!(tg, y, σ, max_iter, decoder)
+        # bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter, decoder)
         dec = hard_decision(bp_result, H)
         count_symbol_errors(dec, b)
     end
@@ -120,12 +120,13 @@ max_iter = 50;
 p = plot();
 sigmas = range(σ, 0.85 * σ, 6);
 
-d = 7;
-for n in [1000]
+decoder = "nearest";
+d = 5;
+for n in [100, 256, 1000]
     H = classical_ldlc(d, n, true)
     # ber = [ec_experiment(H, σ, max_iter, samples) for σ in sigmas]
 
-    ber = [random_encoding_experiment(H, σ, max_iter, samples) for σ in sigmas]
+    ber = [random_encoding_experiment(H, σ, max_iter, samples, decoder) for σ in sigmas]
     ribbon = agresti_coull_confidence_interval.(ber, samples * n)
     println(ber)
     plot!(p, snr_db.(sigmas), ber, xlabel="σ (dB) from Capacity", ylabel="SER", label="[$(n), $(d)]", title="Symbol Error Rate vs. σ", lw=2,

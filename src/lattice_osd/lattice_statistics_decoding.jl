@@ -19,12 +19,13 @@ end
 Create a new instance of the LatticeStatisticsDecoding algorithm. The algorithm is used to solve the lattice decoding problem. The algorithm uses the LLL basis reduction algorithm to reduce the basis of the lattice. The algorithm generates all possible candidates for the solution of the lattice decoding problem.
 """
 function LatticeStatisticsDecoding(order::Vector{Int64}, G::AbstractMatrix{Float64}, reduced::Bool=true)
-    B = lll_basis_reduction(G)
     candidates = generate_candidates(size(G, 2), order)
 
     if reduced
-        basis = B
+        B = lll_basis_reduction(G)
+        basis = lll_basis_reduction(G)
     else
+        B = G
         basis = G
     end
 
@@ -34,7 +35,7 @@ end
 
 
 function lll_basis_reduction(G::AbstractMatrix{Float64})
-    B, _ = LLLplus.hkz(G,)
+    B, _ = LLLplus.lll(G)
     return B
 end
 

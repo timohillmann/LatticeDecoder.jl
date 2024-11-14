@@ -1,5 +1,5 @@
 using LatticeAlgorithms
-
+using SparseArrays: sparse, SparseMatrixCSC
 
 function qpqp_to_qqpp(M::AbstractMatrix)
     # move columns with even indices to the right
@@ -30,8 +30,39 @@ function surface_code_logicals(d::Int)
     return L / sqrt(2)
 end
 
-function GKP_Surface_Code(d::Int)
+function balance_weights!(mat::SparseMatrixCSC{Int64, Int64})
+    for i in 1:size(mat, 1)
+        row = mat[i, :]
+        num_nzvals = count(!iszero, row)
+        if num_nzvals == 1
+            nz_idx = row.nzind[1]
+            # find the row that has a 1 in the same column
+            for j in 1:size(mat, 1)
+                if j == i
+                    continue
+                end
+                if mat[j, nz_idx] == 1
+                    row2 = mat[j, :]
+                    mat[i, :] .= row2 .- row
+                    break
+                end
+            end
+        end
+    end
+end
+
+
+
+function GKP_Surface_Code(d::Int, balance_hamming_weight::Bool=true)
     H = qpqp_to_qqpp(surface_code_M(d))
     L = surface_code_logicals(d)
+
+    if balance_hamming_weight
+        H_CSC = sparse(H)
+        H_CSC = round.(Int64, sqrt(2) * H_CSC)
+        balance_weights!(H_CSC)
+        H = Matrix(H_CSC / sqrt(2))
+    end
+
     return QuantumCode(H, L)
 end
