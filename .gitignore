@@ -2,3 +2,5 @@
 *.DS_Store
 scratch/*
 Manifest.toml
+examples/results
+results
