@@ -35,4 +35,7 @@ include("utilities/tools.jl")
 export overcomplete_syndrome_preperation, integer_solve, compute_syndrome, compute_eta, compute_eta_overcomplete
 include("lattice_tools/overcomplete_syndrome.jl")
 
+export l1_minimize
+include("lp_decoding/lp_decoding.jl")
+
 end # module LatticeDecoder

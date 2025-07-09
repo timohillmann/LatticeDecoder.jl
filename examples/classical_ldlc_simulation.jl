@@ -1,6 +1,6 @@
 using Distributed
-addprocs(6);
-@everywhere using LatticeDecoder
+# addprocs(6);
+# @everywhere using LatticeDecoder
 using LatticeDecoder
 
 # Parameters
@@ -23,14 +23,20 @@ y = encode(b, G);
 
 y .+= sample_error(σ, n);
 
+lp_result = l1_minimize(y, H)
+dec_lp = hard_decision(lp_result, H)
+
 serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10);
 serial_dec = hard_decision(serial_bp_result, H);
 
 bp_result = run_belief_propagation!(tg, y, σ, 10);
 dec = hard_decision(bp_result, H);
 
+
+
 println("Number of symbol errors: ", count_symbol_errors(dec, b))
 println("Number of symbol errors (serial): ", count_symbol_errors(serial_dec, b))
+println("Number of symbol errors (LP): ", count_symbol_errors(dec_lp, b))
 
 # check that bp_results approximately fulfill the parity check equations
 println(round.(Int64, H * bp_result) .% 1)
@@ -55,12 +61,16 @@ end
     tg = initialize_tanner_graph(H)
     println("Running random encoding experiment with σ = ", σ, " with $(nworkers()) workers ")
     errors = @distributed (+) for i = 1:samples
-        random_bitstring!(b, n)
+        # random_bitstring!(b, n)
         y = encode(b, G)
         y .+= sample_error(σ, n)
-        bp_result = run_belief_propagation!(tg, y, σ, max_iter, decoder)
+        # bp_result = run_belief_propagation!(tg, y, σ, max_iter, decoder)
         # bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter, decoder)
-        dec = hard_decision(bp_result, H)
+        # dec = hard_decision(bp_result, H)
+
+        lp_result = l1_minimize(y, H)
+        dec = hard_decision(lp_result, H)
+
         count_symbol_errors(dec, b)
     end
     return errors / samples / size(H, 1)
@@ -113,12 +123,12 @@ samples = 1000;
 max_iter = 10;
 σ = lattice_capacity_std()
 p = plot()
-sigmas = range(σ, 0.85 * σ, 4)
-samples = 1000;
+sigmas = range(σ, 0.75 * σ, 5)
+samples = 250;
 max_iter = 50;
 σ = lattice_capacity_std();
 p = plot();
-sigmas = range(σ, 0.85 * σ, 6);
+sigmas = range(σ, 0.75 * σ, 6);
 
 decoder = "nearest";
 d = 5;
