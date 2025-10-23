@@ -1,7 +1,10 @@
 using Distributed
-addprocs(7);
+addprocs(15);
 @everywhere using LatticeDecoder
 
+
+# print the number of workers
+println("Number of workers: ", nworkers())
 
 @everywhere function random_bitstring(n)
     return rand(0:1, n)
@@ -45,10 +48,10 @@ end
 
 path = "results/classical_ldlc/results.csv"
 σ = lattice_capacity_std()
-n_samples = 10_000
+n_samples = 5_000
 max_iter = 50
 sigmas = range(σ, 0.75 * σ, length=10)
-for n in [128, 256, 512, 1024]
+for n in [256, 512, 1024]
     for d in [5]
         H = classical_ldlc(d, n, true)
         for schedule in ["serial", "parallel"]

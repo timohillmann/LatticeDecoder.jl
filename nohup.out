@@ -1,0 +1,588 @@
+
+ERROR: LoadError: IOError: mkdir("results/classical_ldlc"; mode=0o777): no such file or directory (ENOENT)
+Stacktrace:
+ [1] uv_error
+   @ ./libuv.jl:106 [inlined]
+ [2] mkdir(path::String; mode::UInt16)
+   @ Base.Filesystem ./file.jl:185
+ [3] mkdir
+   @ ./file.jl:177 [inlined]
+ [4] add_data!(path::String; shots::Int64, errors::Int64, json_metadata::Dict{Symbol, Any}, decoder::String, discards::Int64, seconds::Float64, custom_counts::Dict{Any, Any})
+   @ LatticeDecoder ~/LatticeDecoder.jl/src/utilities/tools.jl:95
+ [5] top-level scope
+   @ ~/LatticeDecoder.jl/examples/collect_classical_ldlc.jl:72
+in expression starting at /home/timo/LatticeDecoder.jl/examples/collect_classical_ldlc.jl:54
+Number of workers: 15
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+121149
+Number of workers: 15
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+13475
+10582
+8317
+6185
+3977
+2247
+1145
+535
+374
+157
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+11815
+9244
+6756
+4678
+2658
+1300
+734
+269
+81
+89
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+12705
+10702
+8376
+6100
+4081
+2586
+1529
+916
+481
+300
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+11882
+9145
+6876
+4375
+3014
+1549
+799
+474
+181
+68
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+26217
+20602
+15409
+10938
+5666
+2901
+1220
+574
+247
+261
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+23343
+17805
+12122
+7588
+3438
+1600
+427
+219
+33
+22
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+25634
+20833
+15043
+10511
+6311
+3179
+1566
+710
+490
+219
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+23233
+17882
+12191
+6781
+3705
+1573
+504
+201
+23
+21
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+52233
+41380
+30092
+17819
+7982
+3327
+1172
+364
+181
+157
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+45723
+35237
+21615
+10748
+3195
+830
+134
+58
+12
+18
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+51715
+40617
+29506
+18392
+8544
+2955
+1590
+589
+209
+71
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+45008
+35250
+22119
+10816
+3572
+926
+148
+97
+24
+13
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+105132
+86325
+62125
+32969
+10775
+2229
+468
+30
+0
+24
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+92703
+70940
+41815
+13548
+2121
+240
+18
+21
+0
+0
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+102057
+83324
+59480
+31559
+12081
+2712
+828
+58
+105
+12
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+92000
+70987
+42517
+15954
+2652
+415
+31
+29
+5
+1
+Number of workers: 15
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+126678
+100676
+74657
+48022
+25771
+11991
+5075
+1920
+807
+247
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+111349
+85416
+57361
+31793
+15290
+5870
+1891
+425
+137
+111
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+125562
+99387
+73488
+47367
+28015
+14264
+6577
+3228
+1297
+745
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+112569
+86783
+59165
+33920
+16244
+6535
+2149
+863
+192
+102
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+260556
+208468
+150371
+87432
+42063
+15289
+4452
+1551
+649
+385
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+228521
+175185
+109617
+51974
+17288
+3495
+792
+169
+24
+69
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+257114
+206261
+145821
+87419
+40801
+16781
+5420
+2828
+1894
+1012
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+229506
+173635
+111374
+53628
+16555
+3860
+869
+179
+62
+30
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+525860
+426739
+306060
+164646
+56440
+12562
+3792
+911
+380
+58
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+464344
+353320
+213288
+67566
+12178
+1122
+100
+39
+57
+4
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+516218
+415537
+295042
+160638
+59811
+15920
+4690
+1899
+712
+674
+Running random encoding experiment with σ = 0.24197072451914337 with 15 workers 
+Running random encoding experiment with σ = 0.23524931550472272 with 15 workers 
+Running random encoding experiment with σ = 0.22852790649030208 with 15 workers 
+Running random encoding experiment with σ = 0.2218064974758814 with 15 workers 
+Running random encoding experiment with σ = 0.21508508846146077 with 15 workers 
+Running random encoding experiment with σ = 0.20836367944704012 with 15 workers 
+Running random encoding experiment with σ = 0.20164227043261948 with 15 workers 
+Running random encoding experiment with σ = 0.1949208614181988 with 15 workers 
+Running random encoding experiment with σ = 0.18819945240377817 with 15 workers 
+Running random encoding experiment with σ = 0.18147804338935752 with 15 workers 
+462159
+352462
+213591
+76186
+11923
+1452
+138
+117
+15
+5

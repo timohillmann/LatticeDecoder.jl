@@ -1,6 +1,6 @@
 using LinearAlgebra
 using Combinatorics
-using ResumableFunctions
+# using ResumableFunctions
 using LLLplus
 
 struct LatticeStatisticsDecoding
@@ -142,44 +142,44 @@ function generate_candidates(n::Int64, order::Vector{Int64}, fault_indices::Vect
 end
 
 
-@resumable function generate_candidates_iterator(n::Int64, order::Vector{Int64}, fault_indices::Vector{Int64})
-    _vec = zeros(Int64, n)
-    for i in eachindex(order)
-        r = order[i]
-        rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
-        # printstyled("rs: $rs\n", color=:red)
-        for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
-            # i could change the range 1:n to contain only a subset of the indices based on soft information
-            # printstyled("r: $r\n", color=:blue)
-            for idx in multiset_combinations(fault_indices, i)
-                # printstyled("idx: $idx\n", color=:green)
-                _vec .= 0
-                _vec[idx] .= r
-                @yield copy(_vec)
-            end
-        end
-    end
-end
+# @resumable function generate_candidates_iterator(n::Int64, order::Vector{Int64}, fault_indices::Vector{Int64})
+#     _vec = zeros(Int64, n)
+#     for i in eachindex(order)
+#         r = order[i]
+#         rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+#         # printstyled("rs: $rs\n", color=:red)
+#         for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
+#             # i could change the range 1:n to contain only a subset of the indices based on soft information
+#             # printstyled("r: $r\n", color=:blue)
+#             for idx in multiset_combinations(fault_indices, i)
+#                 # printstyled("idx: $idx\n", color=:green)
+#                 _vec .= 0
+#                 _vec[idx] .= r
+#                 @yield copy(_vec)
+#             end
+#         end
+#     end
+# end
 
 
-@resumable function generate_candidates_iterator(n::Int64, order::Vector{Int64})
-    _vec = zeros(Int64, n)
-    for i in eachindex(order)
-        r = order[i]
-        rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
-        # printstyled("rs: $rs\n", color=:red)
-        for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
-            # i could change the range 1:n to contain only a subset of the indices based on soft information
-            # printstyled("r: $r\n", color=:blue)
-            for idx in multiset_combinations(1:n, i)
-                # printstyled("idx: $idx\n", color=:green)
-                _vec .= 0
-                _vec[idx] .= r
-                @yield r # copy(_vec)
-            end
-        end
-    end
-end
+# @resumable function generate_candidates_iterator(n::Int64, order::Vector{Int64})
+#     _vec = zeros(Int64, n)
+#     for i in eachindex(order)
+#         r = order[i]
+#         rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+#         # printstyled("rs: $rs\n", color=:red)
+#         for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
+#             # i could change the range 1:n to contain only a subset of the indices based on soft information
+#             # printstyled("r: $r\n", color=:blue)
+#             for idx in multiset_combinations(1:n, i)
+#                 # printstyled("idx: $idx\n", color=:green)
+#                 _vec .= 0
+#                 _vec[idx] .= r
+#                 @yield r # copy(_vec)
+#             end
+#         end
+#     end
+# end
 
 
 

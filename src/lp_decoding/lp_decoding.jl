@@ -1,29 +1,30 @@
-using JuMP
-using Gurobi
-using LinearAlgebra
 
-using LatticeDecoder
+# using JuMP
+# using Gurobi
+# using LinearAlgebra
 
-function l1_minimize(b::AbstractVector, A::AbstractArray)
-    m, n = size(A)
-    model = Model(Gurobi.Optimizer)
+# using LatticeDecoder
 
-    @variable(model, x[1:n])
-    @variable(model, t[1:m] >= 0)
+# function l1_minimize(b::AbstractVector, A::AbstractArray)
+#     m, n = size(A)
+#     model = Model(Gurobi.Optimizer)
 
-    @objective(model, Min, sum(t[i] for i in 1:m))
+#     @variable(model, x[1:n])
+#     @variable(model, t[1:m] >= 0)
 
-    for i in 1:m
-        # @constraint(model, dot(A[i, :], x) - b[i] >= t[i])
-        # @constraint(model, dot(A[i, :], x) - b[i] <= -t[i])
-        @constraint(model, t[i] >= dot(A[i, :], x) - b[i])
-        @constraint(model, t[i] >= -dot(A[i, :], x) - b[i])
-    end
+#     @objective(model, Min, sum(t[i] for i in 1:m))
 
-    optimize!(model)
+#     for i in 1:m
+#         # @constraint(model, dot(A[i, :], x) - b[i] >= t[i])
+#         # @constraint(model, dot(A[i, :], x) - b[i] <= -t[i])
+#         @constraint(model, t[i] >= dot(A[i, :], x) - b[i])
+#         @constraint(model, t[i] >= -dot(A[i, :], x) - b[i])
+#     end
 
-    return value.(x)
-end
+#     optimize!(model)
+
+#     return value.(x)
+# end
 
 # # Parameters
 # n = 256;

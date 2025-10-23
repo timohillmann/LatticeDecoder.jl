@@ -23,8 +23,8 @@ y = encode(b, G);
 
 y .+= sample_error(σ, n);
 
-lp_result = l1_minimize(y, H)
-dec_lp = hard_decision(lp_result, H)
+# lp_result = l1_minimize(y, H)
+# dec_lp = hard_decision(lp_result, H)
 
 serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 10);
 serial_dec = hard_decision(serial_bp_result, H);
@@ -36,7 +36,7 @@ dec = hard_decision(bp_result, H);
 
 println("Number of symbol errors: ", count_symbol_errors(dec, b))
 println("Number of symbol errors (serial): ", count_symbol_errors(serial_dec, b))
-println("Number of symbol errors (LP): ", count_symbol_errors(dec_lp, b))
+# println("Number of symbol errors (LP): ", count_symbol_errors(dec_lp, b))
 
 # check that bp_results approximately fulfill the parity check equations
 println(round.(Int64, H * bp_result) .% 1)
@@ -64,12 +64,12 @@ end
         # random_bitstring!(b, n)
         y = encode(b, G)
         y .+= sample_error(σ, n)
-        # bp_result = run_belief_propagation!(tg, y, σ, max_iter, decoder)
+        bp_result = run_belief_propagation!(tg, y, σ, max_iter, decoder)
         # bp_result = run_serial_belief_propagation!(tg, y, σ, max_iter, decoder)
-        # dec = hard_decision(bp_result, H)
+        dec = hard_decision(bp_result, H)
 
-        lp_result = l1_minimize(y, H)
-        dec = hard_decision(lp_result, H)
+        # lp_result = l1_minimize(y, H)
+        # dec = hard_decision(lp_result, H)
 
         count_symbol_errors(dec, b)
     end
