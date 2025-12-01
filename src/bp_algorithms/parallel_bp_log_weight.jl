@@ -200,8 +200,14 @@ function forward_backward_recursion(mixtures::Vector{Vector{gaussian_log_weight}
         # Combine forward and backward excluding mixtures[i]
         left = (i > 1) ? forward[i-1] : nothing
         right = (i < d) ? backward[i+1] : nothing
-        combined = prod(left, right)
-        prod!(combined, g)  # multiply channel last
+        if left === nothing
+            combined = prod(right, g)
+        elseif right === nothing
+            combined = prod(left, g)
+        else
+            combined = prod(left, right)
+            prod!(combined, g)  # multiply channel last
+        end
         moment_matching!(outputs[i], combined)
     end
 
@@ -213,10 +219,10 @@ end
 function variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
     var_node = tg.var_nodes[vn_idx]
 
-    mixtures = Vector{Vector{LatticeDecoder.gaussian_log_weight}}()
+    mixtures = [Vector{T}(undef, M) for _ in 1:d]
     @inbounds for j = 1:length(var_node.neighbours)
         cn_idx, edge_weight = var_node.neighbours[j]    
-        push!(mixtures, nearest(var_node.messages[j], var_node.message.mean, var_node.message.period, M))
+        mixtures[j] = m_nearest(var_node.messages[j], var_node.message.mean, edge_weight, M)
     end
 
     outputs = forward_backward_recursion(mixtures, var_node.message)

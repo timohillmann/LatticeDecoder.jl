@@ -1,4 +1,4 @@
-const MIN_VAR::Float64 = 1e-10
+const MIN_VAR::Float64 = 1e-12
 
 abstract type Gaussian end
 
@@ -195,6 +195,41 @@ function nearest!(g1::gaussian_log_weight, g2::gaussian_log_weight, g::gaussian_
     end
 
 end
+
+
+function m_nearest(g::gaussian_log_weight, y::Float64, h::Float64, M::Int64)
+    h = g.period 
+    m = g.mean
+    rhs = (m - y) * h
+    center = round(rhs)
+    offset = M ÷ 2
+    gs = Vector{gaussian_log_weight}(undef, M)
+    for k = 1:M
+        b_k = center + (k - offset - 1)
+        gs[k] = gaussian_log_weight(m - b_k / h, g.var)
+    end
+    return gs
+end
+
+# function m_nearest!(nearest_alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64)
+#     h = g.period
+#     m = g.mean
+#     rhs = (m - y) * h
+#     center = round(rhs)
+#     offset = M ÷ 2
+#     gs = Vector{gaussian_log_weight}(undef, M)
+#     for k = 1:M
+#         b_k = center + (k - offset - 1)
+#         gs[k].mean = m - b_k / h
+#         gs[k].var = g.var
+#     end
+#     return gs
+# end
+
+# g = gaussian_log_weight(0.5, 1.0, 0.0, 1/sqrt(7))
+
+# out = m_nearest(g, 2.0, 1.0, 5)
+
 
 
 """
@@ -418,20 +453,6 @@ function divide!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussi
 end
 
 
-function nearest(g::gaussian_log_weight, y::Float64, h::Float64, M::Int64)
-    m = g.mean
-    rhs = - (m - y) * h
-    center = floor(rhs)
-    offset = M ÷ 2
-    gs = Vector{gaussian_log_weight}(undef, M)
-    for k = 1:M
-        b_k = center + (k - offset - 1)
-        gs[k] = gaussian_log_weight(b_k * h + m, g.var, g.log_weight)
-    end
-    return gs
-end
-
-
 function Base.prod!(gs::Vector{gaussian_log_weight}, g::gaussian_log_weight)
     for k = 1:length(gs)
         prod!(gs[k], g)
@@ -450,14 +471,19 @@ end
 Base.prod(g::gaussian_log_weight, gs::Vector{gaussian_log_weight}) = Base.prod(gs, g)
 
 function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Vector{gaussian_log_weight})
-    terms = gaussian_log_weight[]
+    n1 = length(gs1)
+    n2 = length(gs2)
+    terms = Vector{gaussian_log_weight}(undef, n1 * n2)
+    idx = 1
     for g1 in gs1
         for g2 in gs2
-            push!(terms, prod(g1, g2))
+            terms[idx] = prod(g1, g2)
+            idx += 1
         end
     end
     return terms
 end
+
 
 function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Nothing)
     return gs1
