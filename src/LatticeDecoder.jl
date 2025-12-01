@@ -9,8 +9,14 @@ include("code_constructors/rep_codes.jl")
 export GKP_Surface_Code
 include("code_constructors/surface_codes.jl")
 
-export lattice_statistics_decoding, LatticeStatisticsDecoding, lattice_statistics_decoding!, local_search!
-include("lattice_osd/lattice_statistics_decoding.jl")
+# export lattice_statistics_decoding, LatticeStatisticsDecoding, lattice_statistics_decoding!, local_search!
+# include("lattice_osd/lattice_statistics_decoding.jl")
+
+export initialize_tanner_graph_quant, run_belief_propagation!
+include("bp_algorithms/quantized_decoder_parallel.jl")
+
+export LocalSearch, local_search!
+include("lattice_osd/local_search.jl")
 
 # BP tools
 export initialize_tanner_graph, run_belief_propagation!

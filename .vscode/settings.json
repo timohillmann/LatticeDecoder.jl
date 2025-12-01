@@ -1,2 +1,5 @@
 {
+    "julia.executablePath": "/Users/timo/.juliaup/bin/julia",
+    "julia.environmentPath": "${workspaceFolder}",
+    "git.ignoreLimitWarning": true,
 }

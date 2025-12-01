@@ -1,8 +1,8 @@
 # This file contains the List Sphere Decoding algorithm implementation.
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
-const EPSILON = 1e-15
-const MAX_ITER = 10000
+const EPSILON = 1e-20
+const MAX_ITER = 1000
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}

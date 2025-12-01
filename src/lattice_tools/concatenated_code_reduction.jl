@@ -3,6 +3,7 @@ using LinearAlgebra
 using NPZ
 using LinearAlgebraX
 using DelimitedFiles
+using Test
 
 Z2, _ = residue_ring(ZZ, 2)
 

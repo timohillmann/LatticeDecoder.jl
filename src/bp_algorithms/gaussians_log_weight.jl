@@ -416,3 +416,53 @@ function divide!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussi
     g_out.log_weight = log_β
     return nothing
 end
+
+
+function nearest(g::gaussian_log_weight, y::Float64, h::Float64, M::Int64)
+    m = g.mean
+    rhs = - (m - y) * h
+    center = floor(rhs)
+    offset = M ÷ 2
+    gs = Vector{gaussian_log_weight}(undef, M)
+    for k = 1:M
+        b_k = center + (k - offset - 1)
+        gs[k] = gaussian_log_weight(b_k * h + m, g.var, g.log_weight)
+    end
+    return gs
+end
+
+
+function Base.prod!(gs::Vector{gaussian_log_weight}, g::gaussian_log_weight)
+    for k = 1:length(gs)
+        prod!(gs[k], g)
+    end
+end
+Base.prod!(g::gaussian_log_weight, gs::Vector{gaussian_log_weight}) = Base.prod!(gs, g)
+
+
+function Base.prod(gs::Vector{gaussian_log_weight}, g::gaussian_log_weight)
+    terms = gaussian_log_weight[]
+    for g1 in gs
+        push!(terms, prod(g1, g))
+    end
+    return terms
+end
+Base.prod(g::gaussian_log_weight, gs::Vector{gaussian_log_weight}) = Base.prod(gs, g)
+
+function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Vector{gaussian_log_weight})
+    terms = gaussian_log_weight[]
+    for g1 in gs1
+        for g2 in gs2
+            push!(terms, prod(g1, g2))
+        end
+    end
+    return terms
+end
+
+function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Nothing)
+    return gs1
+end
+
+Base.prod(gs1::Nothing, gs2::Vector{gaussian_log_weight}) = Base.prod(gs2, gs1)
+
+

@@ -124,6 +124,13 @@ function variable_node_iterations_lsd!(tg::TannerGraph)
 end
 
 
+function variable_node_iterations_M_gaussian!(tg::TannerGraph, M::Int64)
+    for i = 1:tg.nv
+        variable_node_messages_M_gaussian!(tg, i, M)
+    end
+end
+
+
 """
     variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
 
@@ -154,6 +161,78 @@ function variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
         cn.messages[idx] = sum(gL, gR)
     end
 end
+
+
+
+
+"""
+    forward_backward_decoder(mixtures, g)
+
+Compute variable node outputs using forward-backward recursion for M-Gaussian LDLC decoding.
+
+Arguments:
+- mixtures::Vector{Vector{gaussian_log_weight}}: Each element is a mixture from a check node (M Gaussians).
+- g::gaussian_log_weight: Channel Gaussian for the variable node.
+
+Returns:
+- outputs::Vector{gaussian_log_weight}: Single Gaussian per edge after moment matching.
+"""
+function forward_backward_recursion(mixtures::Vector{Vector{gaussian_log_weight}}, g::gaussian_log_weight)
+    d = length(mixtures)  # degree of variable node
+
+    # Forward recursion
+    forward = Vector{Vector{gaussian_log_weight}}(undef, d)
+    forward[1] = mixtures[1]
+    for i in 2:d
+        forward[i] = prod(forward[i-1], mixtures[i])
+    end
+
+    # Backward recursion
+    backward = Vector{Vector{gaussian_log_weight}}(undef, d)
+    backward[d] = mixtures[d]
+    for i in (d-1):-1:1
+        backward[i] = prod(backward[i+1], mixtures[i])
+    end
+
+    # Compute outputs for each edge
+    outputs = Vector{gaussian_log_weight}([gaussian_log_weight(0.0, 1.0) for _ = 1:d])
+    for i in 1:d
+        # Combine forward and backward excluding mixtures[i]
+        left = (i > 1) ? forward[i-1] : nothing
+        right = (i < d) ? backward[i+1] : nothing
+        combined = prod(left, right)
+        prod!(combined, g)  # multiply channel last
+        moment_matching!(outputs[i], combined)
+    end
+
+    return outputs
+end
+
+
+
+function variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
+    var_node = tg.var_nodes[vn_idx]
+
+    mixtures = Vector{Vector{LatticeDecoder.gaussian_log_weight}}()
+    @inbounds for j = 1:length(var_node.neighbours)
+        cn_idx, edge_weight = var_node.neighbours[j]    
+        push!(mixtures, nearest(var_node.messages[j], var_node.message.mean, var_node.message.period, M))
+    end
+
+    outputs = forward_backward_recursion(mixtures, var_node.message)
+
+    for j = 1:length(var_node.neighbours)
+        cn_idx, _ = var_node.neighbours[j]
+        idx = var_node.pos_in_check_neighbour[j]
+        cn = tg.check_nodes[cn_idx]
+
+        cn.messages[idx].mean = outputs[j].mean
+        cn.messages[idx].var = outputs[j].var
+        cn.messages[idx].log_weight = outputs[j].log_weight
+    end
+
+end
+
 
 function variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64, Alloc::FourGaussianLogAlloc)
     var_node = tg.var_nodes[vn_idx]
@@ -259,6 +338,9 @@ function variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::
     bp_result[vn_idx] = vn.message.mean
 end
 
+variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64) = variable_node_decision_allocationless!(bp_result, tg, vn_idx, VarNodeAlloc)
+
+
 function variable_node_mother_message!(tg::TannerGraph, vn_idx::Int64, Alloc::SixGaussianLogAlloc)
     vn = tg.var_nodes[vn_idx]
 
@@ -298,8 +380,6 @@ end
 
 mm_variable_node_messages!(tg::TannerGraph, vn_idx::Int64) = mm_variable_node_messages!(tg, vn_idx, MotherNodeAlloc)
 
-variable_node_decision_allocationless!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64) = variable_node_decision_allocationless!(bp_result, tg, vn_idx, VarNodeAlloc)
-
 
 """
     run_belief_propagation!(tg::TannerGraph, syndrome::Vector{Float64}, σ::Float64, max_iter::Int64)
@@ -315,7 +395,7 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5)
 
     if decoder == "nearest"
         variable_node_iterations! = variable_node_iterations_nearest!
@@ -323,6 +403,13 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
 
     elseif decoder == "lsd"
         variable_node_iterations! = variable_node_iterations_lsd!
+        decision_step! = decision_step_lsd!
+
+
+    elseif typeof(decoder) == Int64
+        # Pass decoder as an extra argument
+        # variable_node_iterations_M_gaussian!(tg::TannerGraph) = variable_node_iterations_M_gaussian!(tg, decoder)
+        variable_node_iterations! = (args...) -> variable_node_iterations_M_gaussian!(args..., decoder)
         decision_step! = decision_step_lsd!
 
     else
@@ -443,6 +530,5 @@ function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::
 
 
     # println("bp result: ", tg.bp_result)
-
     return messages_trace, tg.bp_result
 end
