@@ -219,7 +219,7 @@ end
 function variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
     var_node = tg.var_nodes[vn_idx]
 
-    mixtures = [Vector{T}(undef, M) for _ in 1:d]
+    mixtures = [Vector{gaussian_log_weight}(undef, M) for _ in 1:length(var_node.neighbours)]
     @inbounds for j = 1:length(var_node.neighbours)
         cn_idx, edge_weight = var_node.neighbours[j]    
         mixtures[j] = m_nearest(var_node.messages[j], var_node.message.mean, edge_weight, M)

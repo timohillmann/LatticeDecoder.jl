@@ -61,6 +61,16 @@ function update_variable_node_nearest!(tg::TannerGraph, vn_idx::Int64)
     variable_node_messages_allocationless!(tg, vn_idx)
 end
 
+function update_variable_node_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
+    vn = tg.var_nodes[vn_idx]
+    
+    for j = 1:length(vn.neighbours)
+        cn_idx, _ = vn.neighbours[j]
+        vn_pos_idx = vn.pos_in_check_neighbour[j]
+        check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
+    end
+    variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx, M)
+end
 
 
 
@@ -127,7 +137,7 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5)
+function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5)
 
     if decoder == "nearest"
         update_variable_node! = update_variable_node_nearest!
@@ -135,6 +145,11 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
 
     elseif decoder == "lsd"
         update_variable_node! = update_variable_node_lsd!
+        decision_step! = decision_step_lsd!
+
+    elseif typeof(decoder) == Int64
+        # Pass decoder as an extra argument
+        update_variable_node! = (args...) -> update_variable_node_M_gaussian!(args..., decoder)
         decision_step! = decision_step_lsd!
 
     else

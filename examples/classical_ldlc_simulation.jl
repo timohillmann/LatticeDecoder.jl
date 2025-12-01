@@ -1,8 +1,8 @@
-using Distributed
-addprocs(6);
-@everywhere using LatticeDecoder
-# using Revise
-# using LatticeDecoder
+# using Distributed
+# addprocs(6);
+# @everywhere using LatticeDecoder
+using Revise
+using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -27,10 +27,12 @@ y .+= sample_error(σ, n);
 # lp_result = l1_minimize(y, H)
 # dec_lp = hard_decision(lp_result, H)
 
-serial_bp_result = run_belief_propagation!(tg, y, σ, 30, "nearest");
+# serial_bp_result = run_belief_propagation!(tg, y, σ, 30, "nearest");
+serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 30, "nearest");
 serial_dec = hard_decision(serial_bp_result, H);
 
-bp_result = run_belief_propagation!(tg, y, σ, 20, 3);
+# bp_result = run_belief_propagation!(tg, y, σ, 20, 3);
+bp_result = run_serial_belief_propagation!(tg, y, σ, 20, 3);
 dec = hard_decision(bp_result, H);
 
 
