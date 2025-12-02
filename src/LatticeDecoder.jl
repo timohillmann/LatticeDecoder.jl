@@ -19,7 +19,7 @@ export LocalSearch, local_search!
 include("lattice_osd/local_search.jl")
 
 # BP tools
-export initialize_tanner_graph, run_belief_propagation!
+export initialize_tanner_graph, run_belief_propagation!, LDLCDecoder, run_decoder!
 # include("bp_algorithms/parallel_bp.jl")
 include("bp_algorithms/parallel_bp_log_weight.jl")
 

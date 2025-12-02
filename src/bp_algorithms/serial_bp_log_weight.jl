@@ -69,7 +69,7 @@ function update_variable_node_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int
         vn_pos_idx = vn.pos_in_check_neighbour[j]
         check_node_message!(vn, tg, cn_idx, j, vn_pos_idx)
     end
-    variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx, M)
+    variable_node_messages_M_gaussian!(tg, vn_idx, M)
 end
 
 
@@ -84,7 +84,7 @@ Ref. Wiriya & Kurkoski, "Reliability-Based Scheduling for Belief Propagation Dec
 function avg_reliability(vn::VariableNode)
     y = vn.message.mean
     reliability = 0.0
-    for msg in vn.messages
+    @fastmath for msg in vn.messages
         b = -msg.period * (msg.mean - y)
         reliability += 1 / abs(round(b) - b)
     end
@@ -102,7 +102,7 @@ function avg_reliability!(x::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
     @inbounds vn = tg.var_nodes[vn_idx]
     y = vn.message.mean
     reliability = 0.0
-    for msg in vn.messages
+    @fastmath for msg in vn.messages
         b = -msg.period * (msg.mean - y)
         reliability += 1 / abs(round(b) - b)
     end
@@ -115,11 +115,11 @@ end
 
 Update the reliability schedule of the variable nodes in a Tanner graph.
 """
-function update_reliability_schedule!(tg::TannerGraph)
+function update_reliability_schedule!(tg::TannerGraph; rev::Bool=false)
     @inbounds for i in 1:length(tg.var_nodes)
         avg_reliability!(tg.bp_result, tg, i)
     end
-    sortperm!(tg.schedule, tg.bp_result, rev=false)
+    sortperm!(tg.schedule, tg.bp_result, rev=rev)
 end
 
 """

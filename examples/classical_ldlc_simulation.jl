@@ -2,7 +2,7 @@ using Distributed
 # addprocs(6);
 @everywhere using LatticeDecoder
 using Revise
-using LatticeDecoder
+# using LatticeDecoder
 
 # Parameters
 n = 256;
@@ -13,7 +13,7 @@ H = classical_ldlc(d, n, true);
 
 tg = initialize_tanner_graph(H);
 
-σ = 0.20;
+σ = 0.22;
 
 b = zeros(Int64, size(H, 1));
 b[1] = 0;
@@ -32,7 +32,7 @@ serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 30, "nearest");
 serial_dec = hard_decision(serial_bp_result, H);
 
 # bp_result = run_belief_propagation!(tg, y, σ, 20, 3);
-bp_result = run_serial_belief_propagation!(tg, y, σ, 20, 2);
+bp_result = run_serial_belief_propagation!(tg, y, σ, 20, 3);
 dec = hard_decision(bp_result, H);
 
 

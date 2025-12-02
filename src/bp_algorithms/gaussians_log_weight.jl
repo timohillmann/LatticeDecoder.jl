@@ -243,41 +243,22 @@ end
 
 
 
+"""
+    m_nearest!(alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64, M::Int64)
+"""
+function m_nearest!(alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64, M::Int64)
+    m = g.mean
+    h = g.period
+    rhs = (m - y) * h
+    center = floor(rhs)
+    offset = M ÷ 2
+    @inbounds for k = 1:M
+        b_k = center - (k - offset - 1)
+        alloc[k].mean = m - (b_k / h)
+        alloc[k].var = 1.0 * g.var
+    end
+end
 
-# function m_nearest!(nearest_alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64)
-#     h = g.period
-#     m = g.mean
-#     rhs = (m - y) * h
-#     center = round(rhs)
-#     offset = M ÷ 2
-#     gs = Vector{gaussian_log_weight}(undef, M)
-#     for k = 1:M
-#         b_k = center + (k - offset - 1)
-#         gs[k].mean = m - b_k / h
-#         gs[k].var = g.var
-#     end
-#     return gs
-# end
-
-# g = gaussian_log_weight(0.5, 0.2, 0.0, 1/sqrt(7))
-# g1 = gaussian_log_weight(0.0, 1.0)
-# g2 = gaussian_log_weight(0.0, 1.0)
-
-# for y in randn(5)
-#     out = m_nearest(g, y, 0.0, 2)
-#     nearest!(g1, g2, g, y, 0.001)
-
-#     m1 = out[1].mean
-#     m2 = out[2].mean
-#     ms = sort([m1, m2])
-#     _ms = sort([g1.mean, g2.mean])
-
-#     println(ms .- _ms)
-# end
-
-
-# g1
-# g2
 """
     sum!(g_out::gaussian_log_weigth, g1::gaussian_log_weigth, g2::gaussian_log_weigth)
 
@@ -385,6 +366,41 @@ function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_lo
 
     g.mean = m
     g.var = max(Δ, MIN_VAR)
+end
+
+
+function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_log_weight}, ws::AbstractVector{Float64})
+    @inbounds begin
+        # Compute normalized weights in-place
+        for i in eachindex(gs)
+            # Compute denominator for normalization
+            denom = 0.0
+            for j in eachindex(gs)
+                denom += exp(gs[j].log_weight - gs[i].log_weight)
+            end
+            ws[i] = 1 / denom
+        end
+
+        # Compute weighted mean
+        m = 0.0
+        for i in eachindex(gs)
+            m += gs[i].mean * ws[i]
+        end
+
+        # Compute weighted variance
+        Δ = - m^2
+        for i in eachindex(gs)
+            Δ += ws[i] * (gs[i].var + gs[i].mean^2)
+        end
+
+        if Δ < 0
+            error("Variance is negative")
+        end
+
+        # Update g in-place
+        g.mean = m
+        g.var = ifelse(Δ < MIN_VAR, MIN_VAR, Δ)
+    end
 end
 
 
@@ -529,3 +545,27 @@ function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Vector{gaussian_log_we
     return terms
 end
 
+
+
+
+
+function Base.prod!(dest::AbstractVector{gaussian_log_weight}, gs::AbstractVector{gaussian_log_weight}, g::gaussian_log_weight)
+    n1 = length(gs)
+    for idx = 1:n1
+        @views prod!(dest[idx], gs[idx], g)
+    end
+    return nothing
+end
+
+function Base.prod!(dest::AbstractVector{gaussian_log_weight}, gs1::AbstractVector{gaussian_log_weight}, gs2::AbstractVector{gaussian_log_weight})
+    n1 = length(gs1)
+    n2 = length(gs2)
+    idx = 1
+    for idx1 = 1:n1
+        for idx2 = 1:n2
+            @views prod!(dest[idx], gs1[idx1], gs2[idx2])
+            idx += 1
+        end
+    end
+    return nothing
+end
