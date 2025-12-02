@@ -1,6 +1,6 @@
-# using Distributed
+using Distributed
 # addprocs(6);
-# @everywhere using LatticeDecoder
+@everywhere using LatticeDecoder
 using Revise
 using LatticeDecoder
 
@@ -32,7 +32,7 @@ serial_bp_result = run_serial_belief_propagation!(tg, y, σ, 30, "nearest");
 serial_dec = hard_decision(serial_bp_result, H);
 
 # bp_result = run_belief_propagation!(tg, y, σ, 20, 3);
-bp_result = run_serial_belief_propagation!(tg, y, σ, 20, 3);
+bp_result = run_serial_belief_propagation!(tg, y, σ, 20, 2);
 dec = hard_decision(bp_result, H);
 
 
@@ -127,8 +127,8 @@ max_iter = 10;
 σ = lattice_capacity_std()
 p = plot()
 sigmas = range(σ, 0.75 * σ, 5)
-samples = 250;
-max_iter = 50;
+samples = 1000;
+max_iter = 30;
 σ = lattice_capacity_std();
 p = plot();
 sigmas = range(σ, 0.75 * σ, 6);
@@ -147,6 +147,6 @@ for n in [128, 256, 512]
         marker=:circle, markersize=5, grid=true, ribbon=ribbon)
 end
 # set x and y axis in log scale
-plot!(p, yscale=:log10)
+# plot!(p, yscale=:log10)
 # display plot
 display(p)

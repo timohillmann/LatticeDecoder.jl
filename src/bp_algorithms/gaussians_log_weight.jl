@@ -1,4 +1,4 @@
-const MIN_VAR::Float64 = 1e-12
+const MIN_VAR::Float64 = 1e-10
 
 abstract type Gaussian end
 
@@ -106,6 +106,35 @@ function Base.prod(g1::gaussian_log_weight, g2::gaussian_log_weight)
     return gaussian_log_weight(m, Δ, c + g1.log_weight + g2.log_weight)
 end
 
+"""
+    prod(dest::gaussian, g1::gaussian, g2::gaussian)
+
+Update the Gaussian distribution `g1` to be the product of `g1` and `g2`. The
+resulting distribution will have mean and variance given by:
+
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    Δ = 1 / (1 / Δ1 + 1 / Δ2)
+
+where `m1`, `m2`, `Δ1`, and `Δ2` are the mean and variance of `g1` and `g2`,
+respectively. The resulting weight `c` is also computed and assigned to `g1`.
+"""
+function Base.prod!(g::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussian_log_weight)
+    m1 = g1.mean
+    m2 = g2.mean
+    Δ1 = g1.var
+    Δ2 = g2.var
+
+    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
+    m = Δ * (m1 / Δ1 + m2 / Δ2)
+    c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
+    g.mean = m
+    g.var = max(Δ, MIN_VAR)
+    g.log_weight = c + g1.log_weight + g2.log_weight
+    # return gaussian_log_weight(m, Δ, c + g1.log_weight + g2.log_weight)
+end
+
+
+
 
 """
     sum(g1::gaussian, g2::gaussian)
@@ -201,15 +230,19 @@ function m_nearest(g::gaussian_log_weight, y::Float64, h::Float64, M::Int64)
     h = g.period 
     m = g.mean
     rhs = (m - y) * h
-    center = round(rhs)
+    center = floor(rhs)
     offset = M ÷ 2
     gs = Vector{gaussian_log_weight}(undef, M)
     for k = 1:M
-        b_k = center + (k - offset - 1)
-        gs[k] = gaussian_log_weight(m - b_k / h, g.var)
+        b_k = center - (k - offset - 1)
+        # println("b_$(k): ", b_k)
+        gs[k] = gaussian_log_weight(m - (b_k / h), g.var)
     end
     return gs
 end
+
+
+
 
 # function m_nearest!(nearest_alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64)
 #     h = g.period
@@ -226,12 +259,25 @@ end
 #     return gs
 # end
 
-# g = gaussian_log_weight(0.5, 1.0, 0.0, 1/sqrt(7))
+# g = gaussian_log_weight(0.5, 0.2, 0.0, 1/sqrt(7))
+# g1 = gaussian_log_weight(0.0, 1.0)
+# g2 = gaussian_log_weight(0.0, 1.0)
 
-# out = m_nearest(g, 2.0, 1.0, 5)
+# for y in randn(5)
+#     out = m_nearest(g, y, 0.0, 2)
+#     nearest!(g1, g2, g, y, 0.001)
+
+#     m1 = out[1].mean
+#     m2 = out[2].mean
+#     ms = sort([m1, m2])
+#     _ms = sort([g1.mean, g2.mean])
+
+#     println(ms .- _ms)
+# end
 
 
-
+# g1
+# g2
 """
     sum!(g_out::gaussian_log_weigth, g1::gaussian_log_weigth, g2::gaussian_log_weigth)
 
@@ -458,13 +504,12 @@ function Base.prod!(gs::Vector{gaussian_log_weight}, g::gaussian_log_weight)
         prod!(gs[k], g)
     end
 end
-Base.prod!(g::gaussian_log_weight, gs::Vector{gaussian_log_weight}) = Base.prod!(gs, g)
 
 
 function Base.prod(gs::Vector{gaussian_log_weight}, g::gaussian_log_weight)
-    terms = gaussian_log_weight[]
-    for g1 in gs
-        push!(terms, prod(g1, g))
+    terms = Vector{gaussian_log_weight}(undef, length(gs))
+    for k = 1:length(gs)
+        terms[k] = prod(gs[k], g)
     end
     return terms
 end
@@ -483,12 +528,4 @@ function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Vector{gaussian_log_we
     end
     return terms
 end
-
-
-function Base.prod(gs1::Vector{gaussian_log_weight}, gs2::Nothing)
-    return gs1
-end
-
-Base.prod(gs1::Nothing, gs2::Vector{gaussian_log_weight}) = Base.prod(gs2, gs1)
-
 

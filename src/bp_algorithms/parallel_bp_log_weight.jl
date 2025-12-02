@@ -234,7 +234,6 @@ function variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::I
 
         cn.messages[idx].mean = outputs[j].mean
         cn.messages[idx].var = outputs[j].var
-        cn.messages[idx].log_weight = outputs[j].log_weight
     end
 
 end
