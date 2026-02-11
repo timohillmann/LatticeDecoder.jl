@@ -150,7 +150,7 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
     elseif typeof(decoder) == Int64
         # Pass decoder as an extra argument
         update_variable_node! = (args...) -> update_variable_node_M_gaussian!(args..., decoder)
-        decision_step! = decision_step_lsd!
+        decision_step! = decision_step_nearest!
 
     else
         error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
@@ -241,3 +241,41 @@ function run_serial_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, me
 
     return messages_trace, tg.bp_result
 end
+
+
+########
+
+function update_variable_node!(dec::LDLCDecoder, vn_idx::Int64)
+    vn = dec.tg.var_nodes[vn_idx]
+    
+    for j = 1:length(vn.neighbours)
+        cn_idx, _ = vn.neighbours[j]
+        vn_pos_idx = vn.pos_in_check_neighbour[j]
+        check_node_message!(vn, dec.tg, cn_idx, j, vn_pos_idx)
+    end
+    variable_node_messages_M_gaussian_allocationless!(dec.tg, vn_idx, dec)
+end
+
+"""
+    run_decoder!(dec, message, σ, max_iter)
+
+Run belief propagation decoder for `max_iter` iterations,
+using signal `message` and noise standard deviation `σ`.
+Returns posterior estimates.
+"""
+function run_decoder_serial!(dec::LDLCDecoder, message::Vector{Float64}, σ::Float64, max_iter::Int64)
+    initialize_messages!(dec.tg, message, σ)
+
+    for i = 1:max_iter
+        update_reliability_schedule!(dec.tg)
+        for vn_idx in dec.tg.schedule
+            update_variable_node!(dec, vn_idx)
+        end
+    end
+
+    decision_step_nearest!(dec.tg)
+
+    return dec.tg.bp_result
+end
+
+

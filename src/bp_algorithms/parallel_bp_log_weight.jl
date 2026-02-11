@@ -63,7 +63,7 @@ end
     Iterates over all check nodes and updates the messages of the variable nodes.
 """
 function check_node_iterations!(tg::TannerGraph)
-    for i in 1:length(tg.check_nodes)
+    for i in 1:tg.nc
         check_node_messages!(tg, i)
     end
 end
@@ -106,7 +106,7 @@ end
 """
 
 function variable_node_iterations_nearest!(tg::TannerGraph)
-    for i in 1:length(tg.var_nodes)
+    for i in 1:tg.nv
         variable_node_messages_allocationless!(tg, i)
     end
 end
@@ -118,7 +118,7 @@ end
     Iterates over all variable nodes and updates the messages of the check nodes using the LSD algorithm.
 """
 function variable_node_iterations_lsd!(tg::TannerGraph)
-    for i in 1:length(tg.var_nodes)
+    for i in 1:tg.nv
         lsd_variable_node_messages!(tg, i)
     end
 end
@@ -198,14 +198,14 @@ function forward_backward_recursion(mixtures::Vector{Vector{gaussian_log_weight}
     outputs = Vector{gaussian_log_weight}([gaussian_log_weight(0.0, 1.0) for _ = 1:d])
     for i in 1:d
         # Combine forward and backward excluding mixtures[i]
-        left = (i > 1) ? forward[i-1] : nothing
-        right = (i < d) ? backward[i+1] : nothing
-        if left === nothing
-            combined = prod(right, g)
-        elseif right === nothing
-            combined = prod(left, g)
+        # left = (i > 1) ? forward[i-1] : nothing
+        # right = (i < d) ? backward[i+1] : nothing
+        if i == 1
+            combined = prod(backward[i+1], g)
+        elseif i == d
+            combined = prod(forward[i-1], g)
         else
-            combined = prod(left, right)
+            combined = prod(forward[i-1], backward[i+1])
             prod!(combined, g)  # multiply channel last
         end
         moment_matching!(outputs[i], combined)
@@ -218,24 +218,57 @@ end
 
 function variable_node_messages_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
     var_node = tg.var_nodes[vn_idx]
+    d = length(var_node.neighbours)
+    if d == 1
+        # special case for degree 1 variable nodes
+        cn_idx, edge_weight = var_node.neighbours[1]
+        idx = var_node.pos_in_check_neighbour[1]
+        cn = tg.check_nodes[cn_idx]
+        cn.messages[idx] = copy(var_node.message)
+        return
+    else
+        mixtures = [Vector{gaussian_log_weight}(undef, M) for _ in 1:d]
+        @inbounds for j = 1:d
+            cn_idx, edge_weight = var_node.neighbours[j]    
+            mixtures[j] = m_nearest(var_node.messages[j], var_node.message.mean, edge_weight, M)
+        end
+            outputs = forward_backward_recursion(mixtures, var_node.message)
+    
+        for j = 1:d
+            cn_idx, _ = var_node.neighbours[j]
+            idx = var_node.pos_in_check_neighbour[j]
+            cn = tg.check_nodes[cn_idx]
+    
+            cn.messages[idx].mean = outputs[j].mean
+            cn.messages[idx].var = outputs[j].var
+        end
+    end
 
-    mixtures = [Vector{gaussian_log_weight}(undef, M) for _ in 1:length(var_node.neighbours)]
-    @inbounds for j = 1:length(var_node.neighbours)
+end
+
+function variable_node_decision_M_gaussian!(tg::TannerGraph, vn_idx::Int64, M::Int64)
+    var_node = tg.var_nodes[vn_idx]
+    d = length(var_node.neighbours)
+    mixtures = [Vector{gaussian_log_weight}(undef, M) for _ in 1:d]
+    @inbounds for j = 1:d
         cn_idx, edge_weight = var_node.neighbours[j]    
         mixtures[j] = m_nearest(var_node.messages[j], var_node.message.mean, edge_weight, M)
     end
-
-    outputs = forward_backward_recursion(mixtures, var_node.message)
-
-    for j = 1:length(var_node.neighbours)
-        cn_idx, _ = var_node.neighbours[j]
-        idx = var_node.pos_in_check_neighbour[j]
-        cn = tg.check_nodes[cn_idx]
-
-        cn.messages[idx].mean = outputs[j].mean
-        cn.messages[idx].var = outputs[j].var
+    
+    out = deepcopy(mixtures[1])
+    for j = 2:d
+        out = prod(out, mixtures[j])
     end
+    out = prod(out, var_node.message)
+    moment_matching!(var_node.message, out)
+    tg.bp_result[vn_idx] = var_node.message.mean
+end    
 
+
+function decision_step_M_gaussian!(tg::TannerGraph, M::Int)
+    for vn = 1:tg.nv
+        variable_node_decision_M_gaussian!(tg, vn, M)
+    end
 end
 
 
@@ -276,7 +309,7 @@ variable_node_messages_allocationless!(tg::TannerGraph, vn_idx::Int64) = variabl
 
 """
 function decision_step_nearest!(tg::TannerGraph)
-    for i in 1:length(tg.var_nodes)
+    for i in 1:tg.nv
         variable_node_decision_allocationless!(tg.bp_result, tg, i)
     end
 end
@@ -289,7 +322,7 @@ end
 
 """
 function decision_step_lsd!(tg::TannerGraph)
-    for i in 1:length(tg.var_nodes)
+    for i in 1:tg.nv
         _lsd_variable_node_decision!(tg, i)
     end
 end
@@ -415,7 +448,7 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
         # Pass decoder as an extra argument
         # variable_node_iterations_M_gaussian!(tg::TannerGraph) = variable_node_iterations_M_gaussian!(tg, decoder)
         variable_node_iterations! = (args...) -> variable_node_iterations_M_gaussian!(args..., decoder)
-        decision_step! = decision_step_lsd!
+        decision_step! = (args...) -> variable_node_decision_M_gaussian!(args..., decoder)
 
     else
         error("Invalid decoder. The specified decoder $(decoder) is not supported. Choose either 'nearest' or 'lsd'.")
@@ -627,19 +660,30 @@ Side Effects:
 function variable_node_messages_M_gaussian_allocationless!(tg::TannerGraph, vn_idx::Int64, decoder::LDLCDecoder)
     var_node = tg.var_nodes[vn_idx]
     d = length(var_node.neighbours)
-    @inbounds for j = 1:d
-        @views m_nearest!(decoder.allocs[d].mixtures[j], var_node.messages[j], var_node.message.mean, decoder.M)
-    end
 
-    forward_backward_recursion!(decoder, var_node.message, d)
-
-    for j = 1:d
-        cn_idx, _ = var_node.neighbours[j]
-        idx = var_node.pos_in_check_neighbour[j]
+    if d == 1
+        cn_idx, _ = var_node.neighbours[1]
+        idx = var_node.pos_in_check_neighbour[1]
         cn = tg.check_nodes[cn_idx]
 
-        cn.messages[idx].mean = 1.0 * decoder.allocs[d].outputs[j].mean
-        cn.messages[idx].var = 1.0 * decoder.allocs[d].outputs[j].var
+        cn.messages[idx].mean = 1.0 * var_node.message.mean
+        cn.messages[idx].var = 1.0 * var_node.message.var
+
+    else
+        for j = 1:d
+            @views m_nearest!(decoder.allocs[d].mixtures[j], var_node.messages[j], var_node.message.mean, decoder.M)
+        end
+
+        forward_backward_recursion!(decoder, var_node.message, d)
+
+        for j = 1:d
+            cn_idx, _ = var_node.neighbours[j]
+            idx = var_node.pos_in_check_neighbour[j]
+            cn = tg.check_nodes[cn_idx]
+
+            cn.messages[idx].mean = 1.0 * decoder.allocs[d].outputs[j].mean
+            cn.messages[idx].var = 1.0 * decoder.allocs[d].outputs[j].var
+        end
     end
 
 end
@@ -658,16 +702,16 @@ function forward_backward_recursion!(decoder::LDLCDecoder, g::gaussian_log_weigh
     ws_alloc = decoder.allocs[d].ws_alloc
 
     forward[1] .= mixtures[1]
-    @inbounds for j = 2:d
+    for j = 2:d
         prod!(forward[j], forward[j-1], mixtures[j])
     end
 
     backward[d] .= mixtures[d]
-    @inbounds for j = (d-1):-1:1
+    for j = (d-1):-1:1
         prod!(backward[j], backward[j+1], mixtures[j])
     end
 
-    @views @inbounds for j = 1:d
+    for j = 1:d
         if j == 1
             prod!(combined, backward[j+1], g)
             moment_matching!(outputs[j], combined, ws_alloc)
@@ -697,7 +741,7 @@ Run belief propagation decoder for `max_iter` iterations,
 using signal `message` and noise standard deviation `σ`.
 Returns posterior estimates.
 """
-function run_decoder!(dec::LDLCDecoder, message::Vector{Float64}, σ::Float64, max_iter::Int64)
+function run_decoder_parallel!(dec::LDLCDecoder, message::Vector{Float64}, σ::Float64, max_iter::Int64)
     initialize_messages!(dec.tg, message, σ)
 
     for i = 1:max_iter

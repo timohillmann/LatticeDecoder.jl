@@ -30,7 +30,7 @@ function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::Variab
     msg_vector = _collect_msg_vector(vn, nb_idx)
     if length(msg_vector) == 1
         cn_message.mean = msg_vector[1].mean
-        cn_message.var = MIN_VAR
+        cn_message.var = vn.message.var  # MIN_VAR  # or msg_vector[1].var
         cn_message.period = msg_vector[1].period
         return 1
     end
@@ -56,6 +56,7 @@ Performs the decision step using the List Sphere Decoding algorithm for a variab
 function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
     # println("LSD Variable Node Decision")
     vn = tg.var_nodes[vn_idx]
+
     msg_vector = _collect_msg_vector(vn)
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)

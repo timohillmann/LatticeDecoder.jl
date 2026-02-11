@@ -116,3 +116,31 @@ Return the symbol error rate for a given number of symbols `n` and standard devi
 function symbol_error_rate_hard_decision(n::Int64, σ::Vector{Float64})
     return 1 - (1 - 2 * normcdf(-1 ./ (2 * σ)))^n
 end
+
+
+"""
+    agresti_coull_confidence_interval(p, n, z=1.96)
+
+Compute the Agresti-Coull confidence interval for a binomial distribution.
+The default value of z is for a 95% confidence interval.
+To get the 99% confidence interval, use z=2.576.
+To get the 99.9% confidence interval, use z=3.291.
+
+"""
+function agresti_coull_confidence_interval(p, n, z=1.96)
+    p_ = (n * p + z^2 / 2) / (n + z^2)
+    n_ = n + z^2
+    return z * sqrt(p_ * (1 - p_) / n_)
+end
+
+
+
+function random_bitstring(n)
+    return rand(0:1, n)
+end
+
+function random_bitstring!(b::Vector{Int64}, n)
+    @inbounds for i = 1:n
+        b[i] = rand(0:1)
+    end
+end

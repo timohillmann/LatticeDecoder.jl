@@ -354,15 +354,25 @@ function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_lo
         ws[i] = 1 / (sum(exp(g.log_weight - gs[i].log_weight) for g in gs))
     end
 
-    # Compute the mean
-    m = sum([g.mean * w for (g, w) in zip(gs, ws)])
+      # Compute weighted mean / variance without allocs
+      m = 0.0
+      Δ = 0.0
+      for i in eachindex(gs)
+          m += gs[i].mean * ws[i]
+          Δ += ws[i] * (gs[i].var + gs[i].mean^2)
+      end
+      Δ -= m^2
 
-    # Compute the variance
-    Δ = sum([w * (g.var + g.mean^2) for (g, w) in zip(gs, ws)]) - m^2
-    if Δ < 0
-        println(gs)
-        error("Variance is negative")
-    end
+
+    # # Compute the mean
+    # m = sum([g.mean * w for (g, w) in zip(gs, ws)])
+
+    # # Compute the variance
+    # Δ = sum([w * (g.var + g.mean^2) for (g, w) in zip(gs, ws)]) - m^2
+    # if Δ < 0
+    #     println(gs)
+    #     error("Variance is negative")
+    # end
 
     g.mean = m
     g.var = max(Δ, MIN_VAR)

@@ -54,8 +54,8 @@ end
 
 function local_search!(y::Vector{Float64}, λ::Vector{Float64}, dec::Vector{Int64},lsd::LocalSearch)
     S = select_basis(λ, lsd.w)
-    B = G[:, S]  # select unreliable columns
-    r = y - G * dec
+    B = lsd.G[:, S]  # select unreliable columns
+    r = y - lsd.G * dec
 
     if lsd.sphere_decoding
         u = sphere_decode_small(B, r)
@@ -83,7 +83,7 @@ function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSea
         if dist < best_dist
             best_dist = dist
             best_u .= candidate
-            println("Updated best_dist: $(best_dist)")
+            # println("Updated best_dist: $(best_dist)")
         end
     end
     return best_u
