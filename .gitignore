@@ -3,3 +3,7 @@
 scratch/*
 Manifest.toml
 /results
+*.json
+*.offset
+*.out
+data/*
