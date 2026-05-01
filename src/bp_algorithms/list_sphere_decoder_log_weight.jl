@@ -2,7 +2,6 @@
 # Ref: X. Wang & W. Mow, "Efficient Decoder Design for Low-Density Lattice Codes From the Lattice Viewpoint", IEEE Open J. Commun. Soc. 4 1839-1854 (2023).
 #
 include("lsd_utils.jl")
-include("lsd_paper_search.jl")
 # Parameters for the List Sphere Decoding algorithm
 const W_MIN = 0.95
 
