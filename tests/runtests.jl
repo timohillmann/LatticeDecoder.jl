@@ -1,4 +1,5 @@
 using Test
+include("test_lsd_paper_search.jl")
 include("test_gaussians.jl")
 include("test_code_reduction.jl")
 include("test_lsd_decoder.jl")

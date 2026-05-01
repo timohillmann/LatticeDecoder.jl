@@ -1,23 +1,57 @@
+from typing import Union
 import sinter
 import matplotlib.pyplot as plt
 import numpy as np
 import plotting_lib as pl
 import os
+import mpmath as mp
+import scipy.interpolate as scinp
 pl.update_settings(True)
+
+
+
+def interpolate_data(x, y, ratio=15):
+    X = np.linspace(x.min(), x.max(), len(x) * ratio)
+    _Y = scinp.CubicSpline(x, y)
+    return X, _Y(X)
+
+
+
+
+def prob_erf_n(sig, n):
+    t1 = mp.erf((1 - 4 * n) * mp.sqrt(mp.pi / 2) / (2 * sig))
+    t2 = mp.erf((1 + 4 * n) * mp.sqrt(mp.pi / 2) / (2 * sig))
+    return 1 / 2 * (t1 + t2)
+
+def prob_erf(sig):
+    out = mp.mpf(0)
+    npeaks = 100 # int(3 / sig)
+    for n in range(-npeaks, npeaks+1):
+        out += prob_erf_n(sig, n)
+    return float(out)
+
+
+prob_erf_n = np.vectorize(prob_erf_n)
+prob_erf = np.vectorize(prob_erf)
+
+def gkp_err_prob(sigmas):
+    return 1 - prob_erf(sigmas)**4
 
 
 def plot_marker_style(color, marker="o", ls="solid", ms=4.5):
     return dict(
-            markerfacecolor=pl.lighten_color(color, 0.5),
-            markeredgecolor=color,
-            markersize=ms,
-            linestyle=ls,
-            marker=marker,
-            color=color,
-        )
+        markerfacecolor=pl.lighten_color(color, 0.5),
+        markeredgecolor=color,
+        markersize=ms,
+        linestyle=ls,
+        marker=marker,
+        color=color,
+    )
 
 
-COLORS = pl.colors_rsb
+
+
+COLORS = pl.colors_rsb * 103
 FONTSIZE = 9
 MARKERS = [
     "o",
@@ -36,7 +70,7 @@ MARKERS = [
     "x",
     "|",
     "_",
-]
+] * 100
 
 def search_radius_plot(
     file,
@@ -114,9 +148,11 @@ def threshold_plot(
     schedules=["parallel"],
     decoders=["lsd"],
     local_search=[False],
-    classical=False,
     local_search_lll=[True],
+    balance_weights=[False],
     sphere_decoding=True,
+    k=2,
+    printdata=False,
 ):
 
     dir = "/Users/timo/Documents/LatticeDecoder.jl/results/figures/" + "".join(file.split("/")[:-1])
@@ -136,46 +172,50 @@ def threshold_plot(
     # )
     # print(_data)
     
-    print(data)
+    if printdata:
+        for stat in data:
+            print(stat.to_csv_line())
 
-    radii = sinter.group_by(data, key=lambda stat: stat.json_metadata["search_radius"]).keys()
-    for radius in radii:
-        for dec in decoders:
-            for ls in local_search:
+    for dec in decoders:
+        for ls in local_search:
+            for bw in balance_weights:
                 for ls_lll in local_search_lll:
                     ls_lll = ls_lll if ls else False
                     sphere_decoding = sphere_decoding if ls else False
                     for sch in schedules:
-                        print("Schedule:", sch)
                         fig, ax = pl.create_fig()
                         sinter.plot_error_rate(
                             ax=ax,
                             stats=data,
-                            # x_func = lambda stat: stat.json_metadata["d"],
                             x_func=lambda stat: np.sqrt(2 * np.pi)
                             * stat.json_metadata["sigma"],
                             filter_func=lambda stat: stat.json_metadata["decoder"] == dec
                             and stat.json_metadata["local_search"] == ls
                             and stat.json_metadata["local_search_lll"] == ls_lll
                             and stat.json_metadata["schedule"] == sch
-                            # and stat.json_metadata["d"] < 9
-                            # and stat.json_metadata["d"] > 3
-                            and (np.sqrt(2 * np.pi)
-                            * stat.json_metadata["sigma"] < 1.2)
-                            and stat.json_metadata["search_radius"] == radius
+                            and stat.json_metadata["d"] % 2 == 1
+                            and stat.json_metadata["balance_weights"] == bw
                             and stat.json_metadata["sphere_decoding"] == sphere_decoding,
-                            group_func=lambda stat: f"d={stat.json_metadata['d']}",
+                            group_func=lambda stat:  {'label': f"d = {stat.json_metadata['d']}", 
+                         'sort': stat.json_metadata['d']},
                             plot_args_func=lambda index, curve_id: plot_marker_style(
                             COLORS[index], MARKERS[index]),
                         )
                         ax.set_yscale("log")
                         ax.set_xlabel(r"Noise strength $\sigma$")
-                        ax.set_ylabel("Error rate")
+                        ax.set_ylabel("Logical error rate")
                         ax.set_title(
                             f"Decoder: {dec}, Local search: {ls}, LS LLL: {ls_lll} Schedule: {sch}", fontsize=6
                         )
-                        ax.legend(ncols=2)
-                        ax.set_ylim(None, 0.75)
+                        ax.legend(ncols=1, fontsize=9)
+                        ax.set_ylim(None, 1.)
+
+                        sigma_min, sigma_max = ax.get_xlim()                            
+                        _sigmas_ = np.linspace(sigma_min, sigma_max, 512)
+                        ax.fill_between(_sigmas_, gkp_err_prob(_sigmas_), 1, color=pl.lighten_color("k", 0.1))
+                        ax.plot(_sigmas_, gkp_err_prob(_sigmas_), ls="dashed", color=pl.lighten_color("k", 0.5))
+
+
                         ax.grid(True)
                         pl.tight_layout(fig)
                         fig.savefig(
@@ -187,16 +227,16 @@ def threshold_plot(
                         plt.show()
 
 
-
-
-def plot_paper_a(
+def plot_paper(
     file,
     schedules=["parallel"],
     decoders=["lsd"],
     local_search=[False],
-    classical=False,
     local_search_lll=[True],
+    balance_weights=[False],
     sphere_decoding=True,
+    k=2,
+    printdata=False,
 ):
 
     dir = "/Users/timo/Documents/LatticeDecoder.jl/results/figures/" + "".join(file.split("/")[:-1])
@@ -216,70 +256,70 @@ def plot_paper_a(
     # )
     # print(_data)
     
-    print(data)
-    trans_index = {0: 4, 1: 5, 2: 0, 3: 1, 4: 2, 5: 3}
-    radii = sinter.group_by(data, key=lambda stat: stat.json_metadata["search_radius"]).keys()
-    for radius in radii:
-        for dec in decoders:
-            for ls in local_search:
+    if printdata:
+        for stat in data:
+            print(stat.to_csv_line())
+    labels = {"30_4_5_p2": r"$\llbracket 30, 4, 5 \rrbracket$", "48_4_7_p2": r"$\llbracket 48, 4, 7 \rrbracket$"}
+    for dec in decoders:
+        for ls in local_search:
+            for bw in balance_weights:
                 for ls_lll in local_search_lll:
                     ls_lll = ls_lll if ls else False
                     sphere_decoding = sphere_decoding if ls else False
                     for sch in schedules:
-                        print(dec, sch)
                         fig, ax = pl.create_fig()
-                        
                         sinter.plot_error_rate(
                             ax=ax,
                             stats=data,
-                            # x_func = lambda stat: stat.json_metadata["d"],
                             x_func=lambda stat: np.sqrt(2 * np.pi)
                             * stat.json_metadata["sigma"],
-                            group_func=lambda stat: {'label': f"d = {stat.json_metadata['d']}", 
-                         'sort': stat.json_metadata['d']},
                             filter_func=lambda stat: stat.json_metadata["decoder"] == dec
                             and stat.json_metadata["local_search"] == ls
                             and stat.json_metadata["local_search_lll"] == ls_lll
                             and stat.json_metadata["schedule"] == sch
-                            # and stat.json_metadata["d"] < 9
-                            # and stat.json_metadata["d"] > 3
-                            and (np.sqrt(2 * np.pi)
-                            * stat.json_metadata["sigma"] > .3)
-                            and stat.json_metadata["search_radius"] == radius
-                            and stat.json_metadata["sphere_decoding"] == sphere_decoding,
+                            and stat.json_metadata["balance_weights"] == bw
+                            and stat.json_metadata["sphere_decoding"] == sphere_decoding
+                            and stat.json_metadata["sigma"] * np.sqrt(2*np.pi) > 0.3,
+                            group_func=lambda stat: labels[stat.json_metadata['code_name']],
                             plot_args_func=lambda index, curve_id: plot_marker_style(
-                            COLORS[index], MARKERS[index], ),
+                            COLORS[index], MARKERS[index]),
                         )
                         ax.set_yscale("log")
                         ax.set_xlabel(r"Noise strength $\sigma$")
-                        ax.set_ylabel("Logical $Z$ error rate")
+                        ax.set_ylabel("Logical $X$ error rate")
                         # ax.set_title(
                         #     f"Decoder: {dec}, Local search: {ls}, LS LLL: {ls_lll} Schedule: {sch}", fontsize=6
                         # )
-                        # ax.legend(ncols=2, loc="lower right", bbox_to_anchor=(0.999, -0.02))
-                        ax.legend(ncols=1)
-                        pl.add_label(ax, text="a")
-                        ax.set_ylim(None, 0.75)
+                        ax.legend(fontsize=9, loc="lower right")
+                        ax.set_ylim(None, 1.)
+
+                        sigma_min, sigma_max = ax.get_xlim()                            
+                        _sigmas_ = np.linspace(sigma_min, sigma_max, 512)
+                        ax.fill_between(_sigmas_, gkp_err_prob(_sigmas_), 1, color=pl.lighten_color("k", 0.1))
+                        ax.plot(_sigmas_, gkp_err_prob(_sigmas_), ls="dashed", color=pl.lighten_color("k", 0.5))
+
+
                         ax.grid(True)
-
-
                         pl.tight_layout(fig)
                         fig.savefig(
-                            f"/Users/timo/Dropbox/Apps/Overleaf/paper_quantum_ldlc/figures/rep_code_standard_a.pdf"
+                            f"/Users/timo/Dropbox/Apps/Overleaf/paper_quantum_ldlc/figures/bb_codes_decoder_performance.pdf"
                         )
+                        # fig.savefig(
+                        #     f"/Users/timo/Documents/LatticeDecoder.jl/results/figures/{file}_{dec}_{ls}_{ls_lll}_{sch}.png"
+                        # )
                         plt.show()
 
 
-
-
-def plot_paper_b(
+def code_fam_plot(
     file,
     schedules=["parallel"],
     decoders=["lsd"],
     local_search=[False],
-    classical=False,
     local_search_lll=[True],
+    balance_weights=[False],
     sphere_decoding=True,
+    k=2,
+    printdata=False,
 ):
 
     dir = "/Users/timo/Documents/LatticeDecoder.jl/results/figures/" + "".join(file.split("/")[:-1])
@@ -290,7 +330,8 @@ def plot_paper_b(
         f"/Users/timo/Documents/LatticeDecoder.jl/results/{file:s}.csv"
     )
 
-    # _data = sinter.group_by(data, key=lambda stat: stat.json_metadata["decoder"])
+    _data = sinter.group_by(data, key=lambda stat: stat.json_metadata["code_name"].split("_")[0])
+
     # _data = sinter.group_by(
     #     _data["lsd"], key=lambda stat: stat.json_metadata["schedule"]
     # )
@@ -299,48 +340,57 @@ def plot_paper_b(
     # )
     # print(_data)
     
-    print(data)
-    trans_index = {0: 4, 1: 5, 2: 0, 3: 1, 4: 2, 5: 3}
-    radii = sinter.group_by(data, key=lambda stat: stat.json_metadata["search_radius"]).keys()
-    for radius in radii:
+    if printdata:
+        for stat in data:
+            print(stat.to_csv_line())
+
+    for key, _data_ in _data.items():
         for dec in decoders:
             for ls in local_search:
-                for ls_lll in local_search_lll:
-                    ls_lll = ls_lll if ls else False
-                    sphere_decoding = sphere_decoding if ls else False
-                    for sch in schedules:
-                        print(dec, sch)
-                        fig, ax = pl.create_fig()
-                        sinter.plot_error_rate(
-                            ax=ax,
-                            stats=data,
-                            x_func=lambda stat: stat.json_metadata["d"],
-                                group_func=lambda stat: {'label': rf"$\sigma$ = {np.sqrt(2 * np.pi) * stat.json_metadata['sigma']:.1f}", 
-                            'sort': stat.json_metadata['sigma']},
+                for bw in balance_weights:
+                    for ls_lll in local_search_lll:
+                        ls_lll = ls_lll if ls else False
+                        sphere_decoding = sphere_decoding if ls else False
+                        for sch in schedules:
+                            fig, ax = pl.create_fig()
+                            sinter.plot_error_rate(
+                                ax=ax,
+                                stats=_data_,
+                                x_func=lambda stat: np.sqrt(2 * np.pi)
+                                * stat.json_metadata["sigma"],
                                 filter_func=lambda stat: stat.json_metadata["decoder"] == dec
                                 and stat.json_metadata["local_search"] == ls
                                 and stat.json_metadata["local_search_lll"] == ls_lll
                                 and stat.json_metadata["schedule"] == sch
-                                and stat.json_metadata["sigma"] * np.sqrt(2*np.pi) in [0.3, 0.4, 0.5, 0.6],
-                                # and stat.json_metadata["d"] < 9
-                                # and stat.json_metadata["d"] > 3
+                                and stat.json_metadata["balance_weights"] == bw
+                                and stat.json_metadata["sphere_decoding"] == sphere_decoding,
+                                group_func=lambda stat: f"{stat.json_metadata['code_name']}",
                                 plot_args_func=lambda index, curve_id: plot_marker_style(
-                                COLORS[index], MARKERS[index], ),
-                        )
-                        ax.set_yscale("log")
-                        # ax.legend(loc="upper right", bbox_to_anchor=(0.99, 0.45))
-                        ax.legend(loc="upper right", bbox_to_anchor=(0.99, 0.45))
-                        pl.add_label(ax, text="b")
-                        ax.set_xlabel("Code Distance $d$")
-                        ax.set_xticks(np.arange(3, 15, 2))
-                        ax.set_ylabel("Logical $Z$ error rate")
-                        ax.grid(True)
+                                COLORS[index], MARKERS[index]),
+                            )
+                            ax.set_yscale("log")
+                            ax.set_xlabel(r"Noise strength $\sigma$")
+                            ax.set_ylabel("Logical error rate")
+                            ax.set_title(
+                                f"Decoder: {dec}, Local search: {ls}, LS LLL: {ls_lll} Schedule: {sch}", fontsize=6
+                            )
+                            # ax.legend(ncols=3, fontsize=6)
+                            ax.set_ylim(None, 1.)
 
-                        pl.tight_layout(fig)
-                        fig.savefig(
-                            f"/Users/timo/Dropbox/Apps/Overleaf/paper_quantum_ldlc/figures/rep_code_standard_b.pdf"
-                        )
-                        plt.show()
+                            sigma_min, sigma_max = ax.get_xlim()                            
+                            _sigmas_ = np.linspace(sigma_min, sigma_max, 512)
+                            ax.plot(_sigmas_, gkp_err_prob(_sigmas_), ls="dashed", c="grey")
+                            
+
+                            ax.grid(True)
+                            pl.tight_layout(fig)
+                            fig.savefig(
+                                f"/Users/timo/Documents/LatticeDecoder.jl/results/figures/{file}_{dec}_{ls}_{ls_lll}_{sch}.pdf"
+                            )
+                            fig.savefig(
+                                f"/Users/timo/Documents/LatticeDecoder.jl/results/figures/{file}_{dec}_{ls}_{ls_lll}_{sch}.png"
+                            )
+                            plt.show()
 
 
 def error_rate_scaling_plot(
@@ -349,8 +399,7 @@ def error_rate_scaling_plot(
     decoders=["lsd"],
     local_search=[False],
     classical=False,
-    local_search_lll=[True],
-):
+    local_search_lll=[True],):
     data = sinter.stats_from_csv_files(
         f"/Users/timo/Documents/LatticeDecoder.jl/results/{file:s}.csv"
     )
@@ -369,22 +418,25 @@ def error_rate_scaling_plot(
                         ax=ax,
                         stats=data,
                         x_func=lambda stat: stat.json_metadata["d"],
-                            group_func=lambda stat: {'label': rf"$\sigma$ = {np.sqrt(2 * np.pi) * stat.json_metadata['sigma']:.1f}", 
-                         'sort': stat.json_metadata['sigma']},
-                            filter_func=lambda stat: stat.json_metadata["decoder"] == dec
-                            and stat.json_metadata["local_search"] == ls
-                            and stat.json_metadata["local_search_lll"] == ls_lll
-                            and stat.json_metadata["schedule"] == sch
-                            and stat.json_metadata["sigma"] * np.sqrt(2*np.pi) in [0.3, 0.4, 0.5, 0.6],
-                            # and stat.json_metadata["d"] < 9
-                            # and stat.json_metadata["d"] > 3
-                            plot_args_func=lambda index, curve_id: plot_marker_style(
-                            COLORS[index], MARKERS[index], ),
+                        # x_func =  lambda stat: np.sqrt(2 * np.pi) * stat.json_metadata["sigma"],
+                        filter_func=lambda stat: stat.json_metadata["decoder"] == dec
+                        and stat.json_metadata["local_search"] == ls
+                        and stat.json_metadata["schedule"] == sch
+                        and stat.json_metadata["local_search_lll"] == ls_lll
+                        and stat.json_metadata["sphere_decoding"] == False
+                        # stat.json_metadata["d"] in [3, 5, 7, 9, 13, 17, 21],
+                        and np.sqrt(2 * np.pi) * stat.json_metadata["sigma"]
+                        in [0.3, 0.4, 0.5, 0.6],
+                        group_func=lambda stat: rf"$\sigma$ = "
+                        + f"{np.sqrt(2 * np.pi) * stat.json_metadata['sigma']}",
+                        plot_args_func=lambda index, group_key, group_stats: plot_marker_style(
+                            COLORS[group_key], MARKERS[group_key]
+                        ),
                     )
                     ax.set_yscale("log")
                     ax.set_xlabel("Code Distance $d$")
-                    ax.set_xticks(np.arange(3, 15, 2))
-                    ax.set_ylabel("Logical $Z$ error rate")
+                    ax.set_xticks(np.arange(3, 20, 2))
+                    ax.set_ylabel("Logical error rate")
                     ax.set_title(
                         f"Decoder: {dec}, Local search: {ls}, LS LLL: {ls_lll} Schedule: {sch}", fontsize=6
                     )
@@ -407,17 +459,20 @@ paths =[
     # "quantum_rep_code/standard_reduced_check_matrix_ls",
     # "quantum_rep_code/balanced_first_reduced_check_matrix_ls",
     # "quantum_rep_code/balanced_last_reduced_check_matrix_ls",
-    # "quantum_codes/bivariate_bicycle_balanced",
+    # "quantum_codes/bivariate_bicycle_w5",
+    # "quantum_codes/bivariate_bicycle_w5b",
+    # "quantum_codes/bivariate_bicycle_w5c",
+    # "quantum_codes/bivariate_bicycle_w5_p3_a",
+    "quantum_codes/bivariate_bicycle_paper",
+    # "quantum_codes/surface_codes"
     # "quantum_rep_code/rep_code_overcomplete"
-    # "quantum_rep_code/rep_code_first_qctip",
-    "quantum_rep_code/rep_code_standard_qctip",
-    # "quantum_rep_code/rep_code_last_qctip",
-    # "quantum_rep_code/rep_code_overcomplete_qctip",
+    # "quantum_rep_code/rep_code_overcomplete"
     ]
 schedules = ["serial"]
 decoders = ["lsd"]
-local_search = [False]
+local_search = [True]
 local_search_lll = [True]
+balance_weights = [True]
 
 # TODO: I need to add another parameter for reduced / non-reduced.
 
@@ -426,21 +481,17 @@ for path in paths:
     #     path,
     #     ds = [5, 7, 9, 11, 13]
     # )
-    plot_paper_a(
+    threshold_plot(
+    # plot_paper(
         path,
         local_search=local_search,
         decoders=decoders,
         schedules=schedules,
+        balance_weights=balance_weights,
         local_search_lll=local_search_lll,
         sphere_decoding=False,
-    )
-    plot_paper_b(
-        path,
-        local_search=local_search,
-        decoders=decoders,
-        schedules=schedules,
-        local_search_lll=local_search_lll,
-        sphere_decoding=False,
+        k="_",
+        printdata=False,
     )
     # error_rate_scaling_plot(
     #     path,
@@ -449,3 +500,4 @@ for path in paths:
     #     schedules=schedules,
     #     local_search_lll=local_search_lll,
     # )
+# 

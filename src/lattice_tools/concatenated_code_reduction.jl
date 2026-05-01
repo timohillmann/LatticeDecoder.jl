@@ -138,6 +138,8 @@ function _greedy_reduction(pcm::zzModMatrix)
 end
 
 
+H = matrix(Z2, vcat([1, 1, 0, 0, 0, 0]', [0, 1, 1, 0, 0, 0]'))
+
 function get_full_rank_pcm(pcm::zzModMatrix)
     # check that the input has full rank
     rk = rank(pcm)

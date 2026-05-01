@@ -13,6 +13,7 @@ def plot_marker_style(color, marker="o", ls="solid", ms=4.5):
         markersize=ms,
         linestyle=ls,
         marker=marker,
+        color=color,
     )
 
 
@@ -81,14 +82,14 @@ def threshold_plot(
                     filter_func=lambda stat: stat.json_metadata["decoder"] == dec
                     and stat.json_metadata["local_search"] == ls
                     and stat.json_metadata["schedule"] == sch,
-                    group_func=lambda stat: f"({stat.json_metadata['nbits']}, {stat.json_metadata['d']})",
+                    group_func=lambda stat: {"label": f"({stat.json_metadata['nbits']}, {stat.json_metadata['d']})", "sort": stat.json_metadata['nbits']},
                     plot_args_func=lambda index, curve_id: plot_marker_style(
                         COLORS[index], MARKERS[index]
                     ),
                 )
                 ax.set_yscale("log")
-                ax.set_xlabel("Noise strength $\sigma$")
-                ax.set_ylabel("Error rate")
+                ax.set_xlabel(r"SNR (dB) from Capacity")
+                ax.set_ylabel("Symbol Error rate")
                 ax.set_title(
                     f"Decoder: {dec}, Local search: {ls}, Schedule: {sch}", fontsize=8
                 )
@@ -135,7 +136,7 @@ def error_rate_scaling_plot(
                     # stat.json_metadata["d"] in [3, 5, 7, 9, 13, 17, 21],
                     np.sqrt(2 * np.pi) * stat.json_metadata["sigma"]
                     in [0.3, 0.4, 0.5, 0.6],
-                    group_func=lambda stat: f"$\sigma$ = "
+                    group_func=lambda stat: rf"$\sigma$ = "
                     + f"{np.sqrt(2 * np.pi) * stat.json_metadata['sigma']}",
                     plot_args_func=lambda index, curve_id: plot_marker_style(
                         COLORS[index], MARKERS[index]
@@ -162,10 +163,10 @@ def error_rate_scaling_plot(
 
 # path = "quantum_codes/bb_codes_results_lx"
 # path = "classical_codes/balanced_last_reduced_rep_code"
-path = "classical_codes/classical_ldlc"
+path = "classical_codes/new_classical_ldlc"
 # path = "quantum_rep_code/balanced_last_reduced_check_matrix"
 schedules = ["parallel", "serial"]
-decoders = ["nearest", "lsd"]
+decoders = ["lsd", "nearest"]
 local_search = [False]
 threshold_plot(
     path,

@@ -2,7 +2,7 @@
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
 const EPSILON = 1e-10
-const MAX_ITER = 1000
+const MAX_ITER = 50
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}
@@ -108,7 +108,7 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
 
         else
             if k == (d - 1)
-                # printstyled("Returnd after $(iter) iterations.\n", color=:blue)
+                # printstyled("Returned after $(iter) iterations.\n", color=:blue)
                 return L, D
             else
                 k += 1
@@ -121,6 +121,7 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
 
         end # if dist
     end # while
+    # printstyled("Returned after $(iter) iterations.\n", color=:red)
     return L, D
 end
 

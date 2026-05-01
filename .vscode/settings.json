@@ -2,4 +2,6 @@
     "julia.executablePath": "/Users/timo/.juliaup/bin/julia",
     "julia.environmentPath": "${workspaceFolder}",
     "git.ignoreLimitWarning": true,
+    "python.terminal.activateEnvironment": false,
+    "python.terminal.activateEnvInCurrentTerminal": false
 }

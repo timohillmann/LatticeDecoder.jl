@@ -14,7 +14,8 @@ using IterTools: product
     # Note that this check does not perform symplectic multiplication. Thus,
     # it assumes either M <- M * J or that standard multiplication is sufficient.
     # println(round.(M * res, digits=5))
-    log_check = mod.(round.(Int, M * res), 2) .!= 0
+    # log_check = mod.(round.(Int, M * res), 2) .!= 0
+    log_check = round.(Mperp * J * res, digits=0) - round.(Mperp * J * res, digits=5) .!= 0.0
     return any(log_check)
 end
 

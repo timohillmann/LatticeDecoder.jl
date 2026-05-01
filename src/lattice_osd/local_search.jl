@@ -10,11 +10,13 @@ struct LocalSearch
     order::Vector{Int64}
     candidates::Vector{Vector{Int64}}
     sphere_decoding::Bool
+    full_basis::Bool
 end
 
-function LocalSearch(w::Int64, G::AbstractMatrix{Float64}, order::Vector{Int64}, lll_reduction::Bool, sphere_decoding::Bool)
-    candidates = generate_candidates(w, order)
-    return LocalSearch(w, G, lll_reduction, order, candidates, sphere_decoding)
+function LocalSearch(w::Int64, G::AbstractMatrix{Float64}, order::Vector{Int64}, lll_reduction::Bool, sphere_decoding::Bool, full_basis::Bool)
+
+    candidates = full_basis ? Vector{Vector{Int64}}() : generate_candidates(w, order)
+    return LocalSearch(w, G, lll_reduction, order, candidates, sphere_decoding, full_basis)
 end 
 
 
@@ -24,7 +26,7 @@ end
 
 
 function generate_candidates(n::Int64, order::Vector{Int64})
-    vecs = []
+    vecs = Vector{Vector{Int64}}()
     _vec = zeros(Int64, n)
     for i in eachindex(order)
         r = order[i]
@@ -48,26 +50,39 @@ end
 function babai_nearest_plane(B::AbstractMatrix{Float64}, r::Vector{Float64})
     # println(size(B))
     # println(size(r))
-    return round.(inv(B' * B) * B' * r)
+    # Use a numerically stable least-squares solve instead of normal equations.
+    return round.(B \ r)
 end
 
 
 function local_search!(y::Vector{Float64}, λ::Vector{Float64}, dec::Vector{Int64},lsd::LocalSearch)
-    S = select_basis(λ, lsd.w)
+    if lsd.full_basis
+        S = 1:size(lsd.G, 2)
+    else
+        S = select_basis(λ, lsd.w)
+    end
     B = lsd.G[:, S]  # select unreliable columns
     r = y - lsd.G * dec
 
     if lsd.sphere_decoding
-        u = sphere_decode_small(B, r)
-        dec[S] .+= u
+        if lsd.lll_reduction
+            B, T, _Q, _R = lll_reduce(B)
+            u = sphere_decode_small(B, r)
+            dec[S] .+= T * u
+        else
+            u = sphere_decode_small(B, r)
+            dec[S] .+= u
+        end
+
     else
         if lsd.lll_reduction
-            B, U = lll_reduce(B)
+            B, T, _Q, _R = lll_reduce(B)
             u_0 = babai_nearest_plane(B, r)
-            u = U * local_cvp(B, r - B * u_0, lsd)
+
+            u = T * (u_0 + local_cvp(B, r - B * u_0, lsd))
         else
             u_0 = babai_nearest_plane(B, r)
-            u = local_cvp(B, r - B * u_0, lsd)
+            u = u_0 + local_cvp(B, r - B * u_0, lsd)
         end
         dec[S] .+= u
     end
@@ -77,9 +92,9 @@ end
 
 function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSearch)
     best_u = zeros(Int64, size(A, 2))
-    best_dist = solution_weight(r)
+    best_dist = sum(abs2, r)
     for candidate in lsd.candidates
-        dist = solution_weight(r - A * (candidate))
+        dist = sum(abs2, r - A * (candidate))
         if dist < best_dist
             best_dist = dist
             best_u .= candidate
@@ -92,7 +107,8 @@ end
 
 function select_basis(λ::Vector{Float64}, n_faults::Int64)
     sort_idx = sortperm(λ, rev=true)
-    return sort_idx[1:n_faults]
+    n = min(n_faults, length(sort_idx))
+    return sort_idx[1:n]
 end
 
 function solution_weight(b::Vector{Float64})
@@ -100,8 +116,14 @@ function solution_weight(b::Vector{Float64})
 end
 
 
-function lll_reduce(B::Matrix{Float64})
-    B, U = LLLplus.lll(B)
+function lll_reduce(B::Matrix{Float64}; δ::Union{Nothing,Float64}=nothing)
+    if δ === nothing
+        B, T, _ = LLLplus.lll(B)
+    else
+        B, T, _ = LLLplus.lll(B, δ)
+    end
+    Q, Rfactor = qr(B)
+    R = Matrix(Rfactor)
     # n, t = size(B)
     # scale = 10^6
     # # Construct a Nemo integer matrix from B
@@ -115,7 +137,7 @@ function lll_reduce(B::Matrix{Float64})
     # # Convert reduced basis and unimodular matrix back to Float64
     # B_red = Float64.(Array(M_lll)) / scale
     # U_red = Int.(Array(U))
-    return B, U
+    return B, T, Q, R
 end
 
 using LinearAlgebra
@@ -211,6 +233,7 @@ function sphere_decode_small(B::AbstractMatrix{<:Real}, r::AbstractVector{<:Real
     # To avoid infinite sequences, we instead implement manual loop in recursion that tries offsets 0,±1,... until metric exceeds bound.
     # Recursive DFS function:
     function dfs(level::Int)
+        nodes[] += 1
         if nodes[] >= max_nodes
             return
         end

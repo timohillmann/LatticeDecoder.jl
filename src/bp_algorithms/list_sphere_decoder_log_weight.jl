@@ -2,6 +2,7 @@
 # Ref: X. Wang & W. Mow, "Efficient Decoder Design for Low-Density Lattice Codes From the Lattice Viewpoint", IEEE Open J. Commun. Soc. 4 1839-1854 (2023).
 #
 include("lsd_utils.jl")
+include("lsd_paper_search.jl")
 # Parameters for the List Sphere Decoding algorithm
 const W_MIN = 0.95
 
@@ -27,6 +28,9 @@ end
 Updates the message of a variable node `vn` for a specific neighbour `nb_idx` using the List Sphere Decoding algorithm.
 """
 function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
+    
+
+
     msg_vector = _collect_msg_vector(vn, nb_idx)
     if length(msg_vector) == 1
         cn_message.mean = msg_vector[1].mean
@@ -37,7 +41,7 @@ function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::Variab
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     if length(D) == 0
-        # println("Nothing found.")
+        # print("Nothing found.")
         # printstyled("msg_v: $(msg_vector), cn_msg: $(cn_message)\n", color=:red)
         return 0
 
@@ -54,17 +58,25 @@ end
 Performs the decision step using the List Sphere Decoding algorithm for a variable node `vn_idx` in the Tanner graph `tg`.
 """
 function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
-    # println("LSD Variable Node Decision")
     vn = tg.var_nodes[vn_idx]
-
     msg_vector = _collect_msg_vector(vn)
+
+    if length(msg_vector) == 2  # handle weird case
+        for msg in msg_vector
+            if msg.var ≈ LatticeDecoder.MIN_VAR # this will dominate
+                bp_result[vn_idx] = msg.mean
+                return 
+            end
+        end
+    end
+
     lsd_inputs = ListSphereDecodingInput(msg_vector)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
     if length(D) == 0
-        println("Nothing found. vn.message.mean = $(vn.message.mean)")
-        println(msg_vector)
-        println("Number messages: $(length(msg_vector))")
+        print("Nothing found. vn.message.mean = $(vn.message.mean)")
+        print(msg_vector)
+        print("Number messages: $(length(msg_vector))")
         # vn.message.mean = 0.0 # no candidate found
     else
         moment_matching!(vn.message, candidate_gaussians)
@@ -140,7 +152,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight})
         t_vector[i] = sign(msg.period) / sqrt(msg.var)
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
-        # println("Var & Period ", msg.var, " ", msg.period, " ")
+        # print("Var & Period ", msg.var, " ", msg.period, " ")
         β = abs(msg.period) < W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
         # β = max(β, 1 / sqrt(msg.var * msg.period^2))
     end
@@ -177,7 +189,7 @@ function _calculate_candidate_gaussians(inputs::ListSphereDecodingInput, L::Vect
     # inds = sortperm(D)
     # candidate_gaussians = candidate_gaussians[inds]
     # if length(candidate_gaussians) > 2
-    #     println("Shorteninng output.")
+    #     print("Shorteninng output.")
     #     candidate_gaussians = candidate_gaussians[1:2]
     # end
     return candidate_gaussians
@@ -192,17 +204,27 @@ Perform the variable node decision step using the List Sphere Decoding algorithm
 function _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     msg_vector = _collect_msg_vector(vn)
-    # println("Message Vector: ", msg_vector)
+
+    # I need to handle the no checks case.
+    if length(msg_vector) == 2
+        for msg in msg_vector
+            if msg.var ≈ LatticeDecoder.MIN_VAR # this will dominate
+                tg.bp_result[vn_idx] = msg.mean
+                return 
+            end
+        end
+    end
+
     lsd_inputs = ListSphereDecodingInput(msg_vector)
 
     L, D = simplified_lsd(lsd_inputs)
     can_gaussian = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
 
     if length(D) == 0
-        println("Nothing found.")
+        print("Nothing found.")
     else
         moment_matching!(vn.message, can_gaussian)
     end
-    # println("Candidate Gaussians: ", can_gaussian)
+    # print("Candidate Gaussians: ", can_gaussian)
     tg.bp_result[vn_idx] = vn.message.mean
 end

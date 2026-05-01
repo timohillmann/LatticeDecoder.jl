@@ -1,5 +1,5 @@
 using Distributed
-addprocs(15)
+addprocs(18)
 @everywhere using NormalForms
 @everywhere using LLLplus
 @everywhere using LatticeDecoder
@@ -94,30 +94,33 @@ end
 
 
 codes = [
-    Dict("n" => 1000, "d" => 7),
-    Dict("n" => 10000, "d" => 7), ]
+    # Dict("n" => 1000, "d" => 7),
+    Dict("n" => 10_000, "d" => 7)]
 
 for code in codes
     create_classical_ldlc(code)
 end
 
+
 codes = [
-    Dict("n" => 128, "d" => 5),
-    Dict("n" => 256, "d" => 5),
-    Dict("n" => 512, "d" => 5),
-    Dict("n" => 1024, "d" => 5),
-    Dict("n" => 768, "d" => 7),
-    Dict("n" => 1000, "d" => 7),
-    Dict("n" => 10000, "d" => 7), ]
+    # Dict("n" => 128, "d" => 5),
+    # Dict("n" => 256, "d" => 5),
+    # Dict("n" => 512, "d" => 5),
+    # Dict("n" => 1024, "d" => 5),
+    # Dict("n" => 768, "d" => 7),
+    # Dict("n" => 1024, "d" => 7)
+    # Dict("n" => 1000, "d" => 7),
+    Dict("n" => 10_000, "d" => 7)
+    ]
 
 
 global result_dict = Dict()
 reduced_basis = true
-path = "results/classical_codes/classical_ldlc.csv"
-for r = 1:10
-    for decoder in ["nearest", "lsd"]
+path = "results/classical_codes/new_classical_ldlc.csv"
+for r = 1:1
+    for decoder in ["lsd"]
         for local_search in [false]
-            for schedule in ["parallel", "serial"]
+            for schedule in ["parallel"]
                 for dec_style in ["received_vector"]
                     # for n in [3]
                     for code_params in codes
@@ -129,10 +132,10 @@ for r = 1:10
 
                 
                         σ = lattice_capacity_std()
-                        sigmas = range(σ, .75 * σ, 6);
+                        sigmas = range(σ, .8 * σ, 6)[4:end];
 
 
-                        n_samples = 1_000
+                        n_samples = 100
                         results = run_experiment(
                             H, G, sigmas, n_samples, schedule, iterations, decoder, search_radius
                         )
