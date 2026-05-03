@@ -11,7 +11,7 @@ Examples should:
 - use `using LatticeDecoder` instead of including files from `src/` directly.
 
 Long simulation runs, figure-generation scripts, and data collection workflows
-belong in a separate experiment or artifact directory.
+belong in a separate experiment or generated-data directory.
 
 ## Classical LDLC decoding
 
@@ -70,5 +70,5 @@ Open:
 examples_new/qldlc_generated_code_decode.ipynb
 ```
 
-The example loads a generated qLDLC artifact by name, prepares the decoding
+The example loads a generated qLDLC code by name, prepares the decoding
 experiment, and runs a small smoke decode.
