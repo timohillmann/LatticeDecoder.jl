@@ -33,14 +33,12 @@ addprocs(5);
         # bp_result = run_belief_propagation!(tg, y, σ, tg.nv)
         dec = hard_decision(bp_result, H_R)
 
-        corr = η - lsd.basis * dec
-        # corr = η - G * dec
-
-        # lattice_statistics_decoding!(corr, lsd)
         if local_search
-            local_search!(corr, y, dec, lsd)
+            λ = abs.(H * bp_result) .% 1.0
+            local_search!(η, λ, dec, lsd)
         end
 
+        corr = η - lsd.G * dec
         res = y - corr
 
         # println(2 * logical * res)
@@ -60,7 +58,7 @@ end
 @everywhere function qec_experiment(logical, H, G, sigmas, n_samples, order, local_search, schedule, reduced_basis, iterations, decoder, dec_style, search_radius)
     results = []
     tg = initialize_tanner_graph(H)
-    lsd = LatticeStatisticsDecoding(order, G, reduced_basis)
+    lsd = LocalSearch(length(order), G, order, reduced_basis, false, false)
     results = [qec_sample(tg, lsd, H, G, logical, σ, n_samples, local_search, schedule, iterations, decoder, dec_style, search_radius) for σ in sigmas]
     return results
 end
