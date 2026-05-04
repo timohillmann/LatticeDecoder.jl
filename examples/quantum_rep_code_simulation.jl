@@ -25,9 +25,9 @@ end
 
 
 σs = range(0.5, 2.0, 6)
-ns = [3, 5, 7, 9, 11]
-samples = 10_000
-max_iter = 100
+ns = [3, 5, 7]
+samples = 10
+max_iter = 5
 
 results = Results(ns, σs, samples, max_iter)
 
@@ -39,7 +39,8 @@ results = Results(ns, σs, samples, max_iter)
         logical = vec(code.logical')
         M = code.code
         H = -M * J
-        Mperp = -inv(J * M')
+        println(H)
+        # Mperp = -inv(J * M')
 
         G = inv(H)
 
@@ -77,7 +78,7 @@ function plot_results(results::Results)
     for n in results.ns
         plot!(fig, results.σs, 1.0 .- results.results[n], label="n = $n")
     end
-    plot!(fig, xlabel=L"$\sigma$", ylabel="Success rate", legend=:topright, yscale=:log)
+    plot!(fig, xlabel=L"$\sigma$", ylabel="Success rate", legend=:bottomright, yscale=:log)
     fig
 end
 

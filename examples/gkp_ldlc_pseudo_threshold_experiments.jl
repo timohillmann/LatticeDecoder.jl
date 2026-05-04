@@ -12,7 +12,7 @@ end
 @everywhere using DelimitedFiles
 @everywhere using LatticeDecoder
 @everywhere using Colors
-
+using NPZ
 
 if true
     @everywhere include(realpath(dirname(@__FILE__))*"/../src/code_constructors/rep_codes.jl")
@@ -103,7 +103,7 @@ th_pl = plot()
 samples = 1000
 
 
-file_names = readlines("examples/ldlc_gens/qubit_containing_2.txt");#[1:1]
+file_names = readlines("examples/ldlc_gens/qubit_containing.txt");#[1:1]
 
 file_names
 # file_names = readlines("examples/ldlc_gens/qubit_containing.txt")
@@ -170,7 +170,7 @@ for file_name in file_names
     # M is the GKP generator, 
     M = npzread("examples/ldlc_gens/gkpldlc_$(n)_$(index).npy")
     # display(M)
-    Mcan = readdlm("examples/ldlc_gens/gkpldlc_$(n)_$(index)_canonical_M.npy.txt", ' ', BigInt) # Read space-delimited integers into matrix A
+    Mcan = readdlm("examples/ldlc_gens/gkpldlc_$(n)_$(index)_canonical_M.txt", ' ', BigInt) # Read space-delimited integers into matrix A
     Mcan = BigInt.(Mcan*M)
 
     logical = 0

@@ -2,7 +2,7 @@
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
 const EPSILON = 1e-30
-const MAX_ITER = 10_000
+const MAX_ITER = 1_000
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}

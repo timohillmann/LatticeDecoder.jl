@@ -29,9 +29,9 @@ Updates the message of a variable node `vn` for a specific neighbour `nb_idx` us
 function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int)
     msg_vector = _collect_msg_vector(vn, nb_idx)
     if length(msg_vector) == 1
-        cn_message.mean = msg_vector[1].mean
-        cn_message.var = MIN_VAR
-        cn_message.period = msg_vector[1].period
+        # cn_message.mean = msg_vector[1].mean
+        # cn_message.var = MIN_VAR
+        # cn_message.period = msg_vector[1].period
         return 1
     end
     lsd_inputs = ListSphereDecodingInput(msg_vector)

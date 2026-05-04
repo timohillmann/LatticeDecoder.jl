@@ -145,7 +145,8 @@ end
     _vec = zeros(Int64, n)
     for i in eachindex(order)
         r = order[i]
-        rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+        # rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+        rs = r != 0 ? [s * _r for _r in 1:r for s in [-1, 1]] : []
         # printstyled("rs: $rs\n", color=:red)
         for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
             # i could change the range 1:n to contain only a subset of the indices based on soft information
@@ -165,7 +166,8 @@ end
     _vec = zeros(Int64, n)
     for i in eachindex(order)
         r = order[i]
-        rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+        # rs = [s * _r for _r in 1:r if r != 0 for s in [-1, 1]]
+        rs = r != 0 ? [s * _r for _r in 1:r for s in [-1, 1]] : []
         # printstyled("rs: $rs\n", color=:red)
         for r in generate_value_sets(rs, i)  # multiset_combinations(rs, i)
             # i could change the range 1:n to contain only a subset of the indices based on soft information

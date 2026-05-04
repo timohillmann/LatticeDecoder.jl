@@ -88,7 +88,7 @@ function produce_trace(n, σ, max_iter)
         y = sample_error(σ, tg.nv)
         println("y = $y")
         
-        messages_matrix,bp_result = run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "lsd")
+        messages_matrix,bp_result = run_belief_propagation_trace!(tg, y, ones(Float64,n) .*(σ), max_iter, "nearest")
         decoded = G*hard_decision(bp_result,H)
         return messages_matrix, bp_result, decoded
         
@@ -96,9 +96,9 @@ function produce_trace(n, σ, max_iter)
 end
 
 
-n = 3
-σ = 0.7 /(2*sqrt(pi))
-iterations = 3
+n = 5
+σ = 0.3 /(2*sqrt(pi))
+iterations = 4
 
 
 messages_matrix,bp_result, decoded = produce_trace(n, σ, iterations);
