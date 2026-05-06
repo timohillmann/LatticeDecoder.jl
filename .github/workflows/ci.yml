@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - submission
+  pull_request:
+    branches:
+      - submission
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1.11'
+        os:
+          - ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+
+      - name: Cache Julia artifacts
+        uses: julia-actions/cache@v2
+
+      - name: Build package
+        uses: julia-actions/julia-buildpkg@v1
+
+      - name: Run package tests
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
+
+      - name: Run LSD equivalence check
+        run: julia --project=. test/perf/test_lsd_overlay_equivalence.jl
