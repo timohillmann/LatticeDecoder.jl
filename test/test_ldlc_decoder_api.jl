@@ -1,0 +1,120 @@
+using Test
+using Random
+using LatticeDecoder
+
+function _small_ldlc_matrix()
+    return [
+        0.0 -0.8 0.0 -0.5 1.0 0.0;
+        0.8 0.0 0.0 1.0 0.0 -0.5;
+        0.0 0.5 1.0 0.0 0.8 0.0;
+        0.0 0.0 -0.5 -0.8 0.0 1.0;
+        1.0 0.0 0.0 0.0 0.5 0.8;
+        0.5 -1.0 -0.8 0.0 0.0 0.0;
+    ]
+end
+
+function test_ldlc_decoder_api()
+    H = _small_ldlc_matrix()
+    y = [0.1, -0.2, 0.05, 0.3, -0.15, 0.25]
+    sigma = 0.2
+    iterations = 3
+
+    for schedule in (:parallel, :serial), algorithm in (:nearest, :lsd)
+        tg_ref = initialize_tanner_graph(H)
+        tg_dec = initialize_tanner_graph(H)
+
+        reference = if schedule == :parallel
+            copy(run_belief_propagation!(tg_ref, y, sigma, iterations, String(algorithm)))
+        else
+            copy(run_serial_belief_propagation!(tg_ref, y, sigma, iterations, String(algorithm)))
+        end
+
+        decoder = LDLCDecoder(tg_dec; schedule=schedule, algorithm=algorithm, sigma=sigma, max_iterations=iterations)
+        result = run_decoder!(decoder, y)
+
+        @test result === decoder.tg.bp_result
+        @test result ≈ reference
+    end
+
+    string_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule="parallel", algorithm="nearest", sigma=sigma, max_iterations=iterations)
+    string_reference = copy(run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "nearest"))
+    @test run_decoder!(string_decoder, y) ≈ string_reference
+    @test string_decoder.schedule == :parallel
+    @test string_decoder.algorithm == :nearest
+
+    m_reference = copy(run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, 2))
+    decoder = LDLCDecoder(initialize_tanner_graph(H), 2)
+    decoder.sigma = sigma
+    decoder.max_iterations = iterations
+
+    result = run_decoder!(decoder, y)
+    @test result === decoder.tg.bp_result
+    @test result ≈ m_reference
+    @test length(result) == length(y)
+    @test decoder.schedule == :parallel
+    @test decoder.algorithm == 2
+
+    keyword_m_decoder = LDLCDecoder(initialize_tanner_graph(H); M=2, sigma=sigma, max_iterations=iterations)
+    @test run_decoder!(keyword_m_decoder, y) ≈ m_reference
+    @test keyword_m_decoder.algorithm == 2
+
+    decoder.sigma = 0.25
+    decoder.max_iterations = 1
+    @test run_decoder!(decoder, y) === decoder.tg.bp_result
+
+    serial_result = run_decoder_serial!(decoder, y, sigma, iterations)
+    @test serial_result === decoder.tg.bp_result
+    @test decoder.schedule == :serial
+
+    parallel_result = run_decoder_parallel!(decoder, y, sigma, iterations)
+    @test parallel_result === decoder.tg.bp_result
+    @test decoder.schedule == :parallel
+
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); schedule=:layered)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); schedule=1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:paper_lsd)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=2.5)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=0)
+end
+
+function test_ldlc_decoder_api_classical_ldlc_sizes()
+    sigma = 0.2
+
+    for (n, degree, seed) in ((256, 5, 2565), (986, 7, 9867))
+        Random.seed!(seed)
+        H = classical_ldlc(degree, n)
+        y = [0.1 * sin(i) for i in 1:n]
+
+        iterations = 2
+
+        for algorithm in (:nearest, :lsd)
+            tg_ref = initialize_tanner_graph(H)
+            tg_dec = initialize_tanner_graph(H)
+
+            reference = copy(run_belief_propagation!(tg_ref, y, sigma, iterations, String(algorithm)))
+            decoder = LDLCDecoder(tg_dec; schedule=:parallel, algorithm=algorithm, sigma=sigma, max_iterations=iterations)
+            result = run_decoder!(decoder, y)
+
+            @test result === decoder.tg.bp_result
+            @test length(result) == n
+            @test all(isfinite, result)
+            @test result ≈ reference
+        end
+
+        m_iterations = 1
+        tg_m_ref = initialize_tanner_graph(H)
+        m_reference = copy(run_belief_propagation!(tg_m_ref, y, sigma, m_iterations, 2))
+
+        m_decoder = LDLCDecoder(initialize_tanner_graph(H), 2)
+        m_decoder.sigma = sigma
+        m_decoder.max_iterations = m_iterations
+        m_result = run_decoder!(m_decoder, y)
+
+        @test m_result === m_decoder.tg.bp_result
+        @test length(m_result) == n
+        @test all(isfinite, m_result)
+        @test m_result ≈ m_reference
+        @test m_decoder.schedule == :parallel
+        @test m_decoder.algorithm == 2
+    end
+end

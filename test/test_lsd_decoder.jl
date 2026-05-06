@@ -1,8 +1,7 @@
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/tanner_graph.jl")
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/list_sphere_decoder_gaussians.jl")
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/bp_algorithms/parallel_bp.jl")
-include("/Users/timo/Documents/GitHub/LatticeDecoder.jl/src/code_constructors/classical_ldlc.jl")
 using Test
+using LatticeDecoder
+using LatticeDecoder: TannerGraph, initialize_tanner_graph, initialize_messages!, check_node_iterations!,
+    classical_ldlc, _collect_msg_vector, ListSphereDecodingInput, simplified_lsd
 
 
 # create a small TestCase
@@ -103,72 +102,10 @@ function test_lsd_radius(lsd_inputs::ListSphereDecodingInput, β_min=1.0, β_max
     num_old = 0
     for β = β_min:β_max
         lsd_inputs.β = β
+        lsd_inputs.β1 = β
         L, D = simplified_lsd(lsd_inputs)
         @test all(D .<= β^2)
         @test length(D) >= num_old
         num_old = length(D)
     end
-end
-
-
-
-
-vn_idx = 1;
-nb_idx = 1;
-# TC = test_case_one();
-TC = test_case_two();
-msg_vector = _collect_msg_vector(TC.tg.var_nodes[vn_idx], nb_idx);
-lsd_inputs = ListSphereDecodingInput(msg_vector);
-
-# for β in [2.5, 3.0, 3.5, 4.5, 5.5, 6.5, 10.0, 20.0]
-#     L, D = simplified_lsd(lsd_inputs)
-
-#     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-#     println("β = ", β)
-#     println("Num gaussians: ", length(L))
-#     g = moment_matching(candidate_gaussians)
-#     println("Mean: ", g.mean)
-#     println("Var: ", g.var)
-
-# end
-
-
-function lsd_variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
-    var_node = tg.var_nodes[vn_idx]
-    msg_vector = _collect_msg_vector(var_node, nb_idx)
-    lsd_inputs = ListSphereDecodingInput(msg_vector)
-    L, D = simplified_lsd(lsd_inputs)
-    sort_idx = sortperm(D)
-    candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
-    gs = candidate_gaussians[sort_idx]
-    return moment_matching(candidate_gaussians[1:2])
-end
-
-
-
-function variable_node_message(tg::TannerGraph, vn_idx::Int, nb_idx::Int)
-    var_node = tg.var_nodes[vn_idx]
-    j = nb_idx
-    cn_idx, edge_weight = var_node.neighbours[j]
-    idx = var_node.pos_in_check_neighbour[j]
-    cn = tg.check_nodes[cn_idx]
-
-    gL = gaussian(var_node.message.mean, var_node.message.var)
-    gR = gaussian(var_node.message.mean, var_node.message.var)
-
-    for i = 1:length(var_node.messages)
-        if i != j  # don't include the message from the current check node
-            g1, g2 = nearest(var_node.messages[i], var_node.message.mean, var_node.messages[i].period, 1.5)
-            prod!(gL, g1)
-            prod!(gR, g2)
-        end
-    end
-    return sum(gL, gR)
-end
-
-vn_idx = 3
-for nb_idx in [1, 2, 3, 4, 5]
-    println("nb_idx = ", nb_idx)
-    println(variable_node_message(TC.tg, vn_idx, nb_idx))
-    println(lsd_variable_node_message(TC.tg, vn_idx, nb_idx))
 end

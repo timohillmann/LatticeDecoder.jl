@@ -22,9 +22,9 @@ end
 @testset "paper LSD search" begin
     inputs = zero_log_weight_inputs(53)
 
-    old_L, old_D = simplified_lsd(inputs)
-    @test isempty(old_L)
-    @test isempty(old_D)
+    old_L, old_D = simplified_lsd_legacy(inputs)
+    @test !isempty(old_L)
+    @test !isempty(old_D)
 
     inputs = zero_log_weight_inputs(53)
     result = simplified_lsd_paper(inputs)
@@ -33,7 +33,12 @@ end
     @test !isempty(result.D)
     @test minimum(result.D) ≈ 0.0
     @test all(result.D .<= inputs.β^2)
-    @test result.visits > MAX_ITER
+    @test result.visits < MAX_ITER
+    @test length(old_D) > length(result.D)
+
+    default_L, default_D = simplified_lsd(inputs)
+    @test default_L == result.L
+    @test default_D == result.D
 
     budgeted = simplified_lsd_paper(inputs; max_visits=1)
     @test budgeted.status == :budget_exhausted

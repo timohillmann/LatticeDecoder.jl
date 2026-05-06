@@ -4,9 +4,6 @@ using Printf
 
 using LatticeDecoder
 
-include(joinpath(@__DIR__, "..", "..", "src", "perf_overrides", "LSDPerfOverlay.jl"))
-using .LSDPerfOverlay
-
 function run_equivalence_case(H::AbstractMatrix, σ::Float64, iters::Int, seed::Int)
     n = size(H, 2)
     Random.seed!(seed)
@@ -15,8 +12,8 @@ function run_equivalence_case(H::AbstractMatrix, σ::Float64, iters::Int, seed::
     tg_base = initialize_tanner_graph(H)
     tg_opt = initialize_tanner_graph(H)
 
-    base = copy(run_belief_propagation!(tg_base, y, σ, iters, "lsd"))
-    opt = copy(run_belief_propagation_lsd_optimized!(tg_opt, y, σ, iters))
+    base = copy(LatticeDecoder.run_belief_propagation_lsd_reference!(tg_base, y, σ, iters))
+    opt = copy(run_belief_propagation!(tg_opt, y, σ, iters, "lsd"))
 
     max_abs_diff = maximum(abs.(base .- opt))
     hd_base = hard_decision(base, H)

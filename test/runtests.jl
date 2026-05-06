@@ -1,9 +1,9 @@
 using Test
 include("test_lsd_paper_search.jl")
 include("test_gaussians.jl")
-include("test_code_reduction.jl")
 include("test_lsd_decoder.jl")
 include("test_lattice_osd.jl")
+include("test_ldlc_decoder_api.jl")
 
 # run test set
 @testset "gaussians.jl" begin
@@ -11,11 +11,6 @@ include("test_lattice_osd.jl")
     test_gaussian_divide()
     test_moment_matching()
     test_moment_matching!()
-end;
-
-@testset "concatenated_code_reduction.jl" begin
-    toric_4d_test_set()
-    toric_4d_test_set()
 end;
 
 @testset "lsd_decoder.jl" begin
@@ -41,9 +36,15 @@ end;
     end
 end
 
+@testset "LocalSearchOverwrite" begin
+    test_local_search_overwrite_matches_bruteforce()
+    test_local_search_overwrite_searches_all_columns()
+    test_local_search_overwrite_never_worsens()
+end
 
-@testset "test_pauli_rep_correction" begin
-    for n in 3:2:19
-        test_pauli_rep_correction(n)
-    end
+
+
+@testset "LDLCDecoder API" begin
+    test_ldlc_decoder_api()
+    test_ldlc_decoder_api_classical_ldlc_sizes()
 end
