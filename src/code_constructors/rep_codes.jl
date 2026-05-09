@@ -10,26 +10,6 @@ struct QuantumCode
 end
 
 
-"""
-    is_logical_error(code::QuantumCode, error::Vector{Float64})
-
-Check if the error is a logical error for the given code.
-    Note: Currently only checks for a single logical operator.
-"""
-function is_logical_error(code::QuantumCode, error::Vector{Float64})
-    # check if symplectic product is integer
-    # return any(abs.(code.logical * code.J * error ).% 1 .> ACCEPTANCE_THRESHOLD)
-    commutator = code.logical * code.J * error
-    return any(abs.(commutator[1] - round(commutator[1])) > ACCEPTANCE_THRESHOLD)
-    # vector = error[1:(round(Int64, length(error )/2))]
-    # TwoSqVec = 2*[v^2 for v in vector]
-    # return Bool(round(Int64,sum(TwoSqVec))%2)
-
-end
-
-
-
-
 
 """
     gkp_rep_code(d::Int, bit_flip=false)
