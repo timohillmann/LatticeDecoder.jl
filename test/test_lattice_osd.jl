@@ -1,5 +1,5 @@
 using Test
-using LatticeDecoder: generate_candidates, local_search!, LocalSearch, LocalSearchOverwrite, solution_weight
+using LatticeDecoder: generate_candidates, local_search!, LocalSearch, solution_weight
 using LinearAlgebra
 """
     test_number_generated(n::Int, order::Vector{Int64})
@@ -70,7 +70,7 @@ function brute_force_candidate_search(G::AbstractMatrix{Float64}, y::Vector{Floa
     return best_u, best_dist
 end
 
-function test_local_search_overwrite_matches_bruteforce()
+function test_local_search_full_enumeration_matches_bruteforce()
     G = [
         1.0 0.2 0.0
         0.0 1.0 0.3
@@ -81,14 +81,14 @@ function test_local_search_overwrite_matches_bruteforce()
     order = [2, 1, 1]
 
     expected_u, expected_dist = brute_force_candidate_search(G, y, copy(dec), order)
-    lsd = LocalSearchOverwrite(G, order)
+    lsd = LocalSearch(length(order), G, order; search=:full_enumeration)
     local_search!(y, zeros(3), dec, lsd)
 
     @test dec == expected_u
     @test sum(abs2, y - G * dec) ≈ expected_dist
 end
 
-function test_local_search_overwrite_searches_all_columns()
+function test_local_search_full_enumeration_searches_all_columns()
     G = Matrix{Float64}(I, 3, 3)
     y = [0.0, 0.0, 2.1]
     λ = [10.0, 1.0, 0.1]
@@ -97,16 +97,16 @@ function test_local_search_overwrite_searches_all_columns()
     restricted = LocalSearch(1, G, [2], false, false, false)
     local_search!(y, λ, restricted_dec, restricted)
 
-    overwrite_dec = zeros(Int64, 3)
-    overwrite = LocalSearchOverwrite(G, [2])
-    local_search!(y, λ, overwrite_dec, overwrite)
+    full_enumeration_dec = zeros(Int64, 3)
+    full_enumeration = LocalSearch(1, G, [2]; search=:full_enumeration)
+    local_search!(y, λ, full_enumeration_dec, full_enumeration)
 
     @test restricted_dec == [0, 0, 0]
-    @test overwrite_dec == [0, 0, 2]
-    @test sum(abs2, y - G * overwrite_dec) < sum(abs2, y - G * restricted_dec)
+    @test full_enumeration_dec == [0, 0, 2]
+    @test sum(abs2, y - G * full_enumeration_dec) < sum(abs2, y - G * restricted_dec)
 end
 
-function test_local_search_overwrite_never_worsens()
+function test_local_search_full_enumeration_never_worsens()
     G = [
         1.0 0.25
         0.1 1.0
@@ -115,8 +115,25 @@ function test_local_search_overwrite_never_worsens()
     dec = [1, -1]
     initial_dist = sum(abs2, y - G * dec)
 
-    lsd = LocalSearchOverwrite(G, [1, 1])
+    lsd = LocalSearch(length([1, 1]), G, [1, 1]; search=:full_enumeration)
     local_search!(y, zeros(2), dec, lsd)
 
     @test sum(abs2, y - G * dec) <= initial_dist
+end
+
+function test_local_search_constructor_api()
+    G = Matrix{Float64}(I, 3, 3)
+    order = [1, 1]
+
+    positional = LocalSearch(2, G, order, false, false, false)
+    keyword = LocalSearch(2, G, order; search="restricted")
+    full_enumeration = LocalSearch(2, G, order; search=:full_enumeration)
+
+    @test positional.search == :restricted
+    @test keyword.search == :restricted
+    @test full_enumeration.search == :full_enumeration
+    @test length(positional.candidates[1]) == 2
+    @test length(full_enumeration.candidates[1]) == size(G, 2)
+    @test_throws ArgumentError LocalSearch(2, G, order; search=:full_enumeration, sphere_decoding=true)
+    @test_throws ArgumentError LocalSearch(2, G, order; search=:unknown)
 end

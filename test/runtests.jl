@@ -4,6 +4,8 @@ include("test_gaussians.jl")
 include("test_lsd_decoder.jl")
 include("test_lattice_osd.jl")
 include("test_ldlc_decoder_api.jl")
+include("test_ldlc_decoder_regression.jl")
+include("test_sparse_quantum_codes.jl")
 
 # run test set
 @testset "gaussians.jl" begin
@@ -36,10 +38,11 @@ end;
     end
 end
 
-@testset "LocalSearchOverwrite" begin
-    test_local_search_overwrite_matches_bruteforce()
-    test_local_search_overwrite_searches_all_columns()
-    test_local_search_overwrite_never_worsens()
+@testset "LocalSearch full enumeration" begin
+    test_local_search_full_enumeration_matches_bruteforce()
+    test_local_search_full_enumeration_searches_all_columns()
+    test_local_search_full_enumeration_never_worsens()
+    test_local_search_constructor_api()
 end
 
 
@@ -47,4 +50,17 @@ end
 @testset "LDLCDecoder API" begin
     test_ldlc_decoder_api()
     test_ldlc_decoder_api_classical_ldlc_sizes()
+end
+
+@testset "LDLCDecoder regression" begin
+    test_ldlc_decoder_golden_regression()
+end
+
+@testset "Sparse quantum code constructors" begin
+    test_sparse_quantum_modp_rank()
+    test_sparse_quantum_heuristic_enlargement()
+    test_sparse_quantum_trivial_enlargement()
+    test_sparse_quantum_dense_npz_roundtrip()
+    test_sparse_quantum_balance_weights_on_load()
+    test_sparse_quantum_scipy_sparse_fixture()
 end
