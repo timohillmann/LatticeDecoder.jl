@@ -276,12 +276,31 @@ function decode!(x::AbstractArray, H::AbstractMatrix)
 end
 
 
-struct LDLCode
-    H::AbstractMatrix{Float64}
+
+function create_classical_ldlc(code_params::Dict)
+    d = code_params["d"]
+    n = code_params["n"]
+    H = classical_ldlc(d, n, true)
+    G = generator_matrix(H)
+    code_name = "ldlc_n$(n)_d$(d)"
+
+    # Save the matrices H and G to disk
+    save_dir = "generator_matrices/classical_ldlc"
+    # Create directory if it doesn't exist
+    if !isdir(save_dir)
+        mkpath(save_dir)
+    end
+    npzwrite(joinpath(save_dir, "$(code_name)_H.npy"), H)
+    npzwrite(joinpath(save_dir, "$(code_name)_G.npy"), G)
 end
 
-function load_ldlc(d, n)
-    code = npzread("/Users/timo/Documents/GitHub/LatticeDecoder.jl/data/generator_matrices/ldlc/d_$(d)_n_$(n).npz")
-    return code
-end
 
+function load_classical_ldlc(code_params::Dict)
+    d = code_params["d"]
+    n = code_params["n"]
+    code_name = "ldlc_n$(n)_d$(d)"
+    load_dir = "generator_matrices/classical_ldlc"
+    H = npzread(joinpath(load_dir, "$(code_name)_H.npy"))
+    G = npzread(joinpath(load_dir, "$(code_name)_G.npy"))
+    return H, G, code_name
+end
