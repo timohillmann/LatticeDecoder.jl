@@ -6,11 +6,11 @@ include("lsd_utils.jl")
 const W_MIN = 0.95
 
 """
-    lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
+    lsd_variable_node_messages_reference!(tg::TannerGraph, vn_idx::Int64)
 
-Updates the messages of a variable node `vn_idx` in the Tanner graph `tg` using the List Sphere Decoding algorithm.
+Allocating reference implementation of the List Sphere Decoding variable-node update.
 """
-function lsd_variable_node_messages!(tg::TannerGraph, vn_idx::Int64)
+function lsd_variable_node_messages_reference!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     for j = 1:length(vn.neighbours)
         cn_idx, _ = vn.neighbours[j]
@@ -52,11 +52,11 @@ end
 
 
 """
-    _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+    _lsd_variable_node_decision_reference!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
 
-Performs the decision step using the List Sphere Decoding algorithm for a variable node `vn_idx` in the Tanner graph `tg`.
+Allocating reference implementation of the List Sphere Decoding decision step.
 """
-function _lsd_variable_node_decision!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
+function _lsd_variable_node_decision_reference!(bp_result::Vector{Float64}, tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     msg_vector = _collect_msg_vector(vn)
 
@@ -196,11 +196,11 @@ end
 
 
 """
-    _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
+    _lsd_variable_node_decision_reference!(tg::TannerGraph, vn_idx::Int64)
 
-Perform the variable node decision step using the List Sphere Decoding algorithm.
+Allocating reference implementation of the variable-node decision step.
 """
-function _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
+function _lsd_variable_node_decision_reference!(tg::TannerGraph, vn_idx::Int64)
     vn = tg.var_nodes[vn_idx]
     msg_vector = _collect_msg_vector(vn)
 
@@ -226,4 +226,32 @@ function _lsd_variable_node_decision!(tg::TannerGraph, vn_idx::Int64)
     end
     # print("Candidate Gaussians: ", can_gaussian)
     tg.bp_result[vn_idx] = vn.message.mean
+end
+
+function decision_step_lsd_reference!(tg::TannerGraph)
+    for vn_idx = 1:tg.nv
+        _lsd_variable_node_decision_reference!(tg, vn_idx)
+    end
+    return nothing
+end
+
+function run_belief_propagation_lsd_reference!(
+    tg::TannerGraph,
+    message::Vector{Float64},
+    σ::Float64,
+    max_iter::Int64;
+    search_interval::Float64=1.5,
+)
+    tg.search_interval = search_interval
+    initialize_messages!(tg, message, σ)
+
+    for _ = 1:max_iter
+        check_node_iterations!(tg)
+        for vn_idx = 1:tg.nv
+            lsd_variable_node_messages_reference!(tg, vn_idx)
+        end
+    end
+
+    decision_step_lsd_reference!(tg)
+    return tg.bp_result
 end

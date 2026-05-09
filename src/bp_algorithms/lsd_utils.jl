@@ -2,7 +2,7 @@
 # All of the functions here are independent of the messages being of type `gaussian` of `gaussian_log_weight`.
 
 const EPSILON = 1e-10
-const MAX_ITER = 50
+const MAX_ITER = 1000
 mutable struct ListSphereDecodingInput
     f_vector::Vector{Float64}
     g_vector::Vector{Float64}
@@ -46,14 +46,21 @@ function _calculate_R_square_diag(g_vector::Vector{Float64}, f_vector::Vector{Fl
     return R_square_diag
 end
 
-"""
-    simplified_lsd(inputs::AbstractNode)
+struct LSDSearchResult
+    L::Vector{Vector{Int16}}
+    D::Vector{Float64}
+    status::Symbol
+    visits::Int
+end
 
-    Simplified version of the List Sphere Decoding algorithm.
-    See Wang & Mow: Algorithm 1 for more details.
+_schnorr_euchner_step(delta::Float64) = delta < 0 ? -1.0 : 1.0
+
 """
-function simplified_lsd(inputs::ListSphereDecodingInput)
-    # TODO: Improve the performance of this function
+    simplified_lsd_legacy(inputs::ListSphereDecodingInput)
+
+Legacy List Sphere Decoding search with the historical fixed iteration cap.
+"""
+function simplified_lsd_legacy(inputs::ListSphereDecodingInput)
     # Point to inputs
     p = inputs.p_vector
     t = inputs.t_vector
@@ -123,6 +130,103 @@ function simplified_lsd(inputs::ListSphereDecodingInput)
     end # while
     # printstyled("Returned after $(iter) iterations.\n", color=:red)
     return L, D
+end
+
+"""
+    simplified_lsd_paper(inputs; max_visits=nothing)
+
+Paper-faithful List Sphere Decoding search. This removes the legacy fixed
+iteration cap and reports why the search stopped.
+"""
+function simplified_lsd_paper(
+    inputs::ListSphereDecodingInput;
+    max_visits::Union{Nothing,Int}=nothing,
+)
+    max_visits === nothing || max_visits >= 0 || throw(ArgumentError("max_visits must be nonnegative"))
+
+    p = inputs.p_vector
+    t = inputs.t_vector
+    g = inputs.g_vector
+    f = inputs.f_vector
+    R_sq = inputs.R_vector
+    d = length(p)
+    d >= 2 || throw(ArgumentError("simplified_lsd requires at least two input messages"))
+
+    k = d - 1
+    dist = zeros(Float64, d)
+    L = Vector{Vector{Int16}}()
+    D = Vector{Float64}()
+
+    z = zeros(Float64, d)
+    s = zeros(Float64, d)
+    gamma = zeros(Float64, d)
+    u = zeros(Float64, d)
+    u[d] = inputs.u_d
+
+    beta = inputs.β
+    beta1 = inputs.β1
+    beta_sq = beta^2
+
+    gamma[k] = -p[k] + t[k] * g[k] * u[k+1] / f[k]
+    z[k] = round(gamma[k])
+    s[k] = _schnorr_euchner_step(gamma[k] - z[k])
+    dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
+
+    visits = 0
+    while k <= (d - 1)
+        if max_visits !== nothing && visits >= max_visits
+            return LSDSearchResult(L, D, :budget_exhausted, visits)
+        end
+        visits += 1
+
+        if dist[k] <= beta_sq
+            if k == 1
+                push!(L, round.(Int16, copy(z)))
+                push!(D, copy(dist[k]))
+                if length(D) == 1
+                    beta = min(beta1, sqrt(D[1] - 2 * log(EPSILON)))
+                    beta_sq = beta^2
+                end
+
+                z[k] += s[k]
+                s[k] = -s[k] - sign(s[k])
+                dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
+            else
+                u[k] = t[k] * (z[k] + p[k]) / g[k] + u[k+1]
+                k -= 1
+
+                gamma[k] = -p[k] + t[k] * g[k] * u[k+1] / f[k]
+                z[k] = round(gamma[k])
+                s[k] = _schnorr_euchner_step(gamma[k] - z[k])
+                dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
+            end
+        else
+            if k == (d - 1)
+                status = isempty(D) ? :empty : :ok
+                return LSDSearchResult(L, D, status, visits)
+            else
+                k += 1
+
+                z[k] += s[k]
+                s[k] = -s[k] - sign(s[k])
+                dist[k] = dist[k+1] + (gamma[k] - z[k])^2 * R_sq[k]
+            end
+        end
+    end
+
+    status = isempty(D) ? :empty : :ok
+    return LSDSearchResult(L, D, status, visits)
+end
+
+"""
+    simplified_lsd(inputs::ListSphereDecodingInput)
+
+Default List Sphere Decoding search. Returns the same `(L, D)` tuple shape as
+the legacy function, backed by the paper-faithful search.
+"""
+function simplified_lsd(inputs::ListSphereDecodingInput)
+    result = simplified_lsd_paper(inputs)
+    return result.L, result.D
 end
 
 

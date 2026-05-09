@@ -1,231 +1,300 @@
-# # include("gaussians_log_weight.jl")
-# include("tanner_graph_log_weight.jl")
+mutable struct FBAlloc
+    forward::Vector{Vector{gaussian_log_weight}}
+    backward::Vector{Vector{gaussian_log_weight}}
+    mixtures::Vector{Vector{gaussian_log_weight}}
+    combined::Vector{gaussian_log_weight}
+    outputs::Vector{gaussian_log_weight}
+    ws_alloc::Vector{Float64}
+end
 
-# const MIN_VAR::Float64 = 1e-10
+function FBAlloc(d::Int, M::Int)
+    mixtures = [map(copy, fill(gaussian_log_weight(0.0, 1.0), M)) for _ in 1:d]
+    forward = [map(copy, fill(gaussian_log_weight(0.0, 1.0), M^k)) for k = 1:d]
+    backward = [map(copy, fill(gaussian_log_weight(0.0, 1.0), M^k)) for k = d:-1:1]
+    combined = map(copy, fill(gaussian_log_weight(0.0, 1.0), M^(d - 1)))
+    outputs = map(copy, fill(gaussian_log_weight(0.0, 1.0), d))
+    ws_alloc = Vector{Float64}(undef, M^d)
+    return FBAlloc(forward, backward, mixtures, combined, outputs, ws_alloc)
+end
 
-# mutable struct FBAlloc
-#     forward::Vector{Vector{gaussian_log_weight}}
-#     backward::Vector{Vector{gaussian_log_weight}}
-#     temp_mix::Vector{gaussian_log_weight}
-#     outputs::Vector{gaussian_log_weight}
-# end
+mutable struct LDLCDecoder
+    tg::TannerGraph
+    schedule::Symbol
+    algorithm::Union{Symbol,Int64}
+    sigma::Float64
+    max_iterations::Int64
+    search_interval::Float64
+    m_gaussian_allocs::Dict{Int,FBAlloc}
+end
 
-# function FBAlloc(d::Int, max_mix::Int)
-#     forward = [[gaussian_log_weight(0.0, 1.0, 0.0, 1.0) for _ = 1:max_mix] for _ in 1:d]
-#     backward = [[gaussian_log_weight(0.0, 1.0, 0.0, 1.0) for _ = 1:max_mix] for _ in 1:d]
-#     temp_mix = [gaussian_log_weight(0.0, 1.0, 0.0, 1.0) for _ in 1:max_mix]
-#     outputs = [gaussian_log_weight(0.0, 1.0, 0.0, 1.0) for _ in 1:d]
-#     return FBAlloc(forward, backward, temp_mix, outputs)
-# end
+function LDLCDecoder(
+    tg::TannerGraph;
+    schedule=:parallel,
+    algorithm=:lsd,
+    sigma::Float64=1.0,
+    max_iterations::Int64=25,
+    search_interval::Float64=1.5,
+    M=nothing,
+)
+    decoder_schedule = _normalize_decoder_schedule(schedule)
+    decoder_algorithm = _normalize_decoder_algorithm(algorithm, M)
+    _validate_decoder_config(decoder_schedule, decoder_algorithm)
+    allocs = decoder_algorithm isa Int64 ? _m_gaussian_allocs(tg, decoder_algorithm) : Dict{Int,FBAlloc}()
+    return LDLCDecoder(tg, decoder_schedule, decoder_algorithm, sigma, max_iterations, search_interval, allocs)
+end
 
-# mutable struct LDLCDecoder
-#     tg::TannerGraph
-#     fb_allocs::Vector{FBAlloc}  # one allocation per variable node
-#     M::Int                      # mixture size
-# end
+LDLCDecoder(tg::TannerGraph, M::Int) = LDLCDecoder(tg; schedule=:parallel, algorithm=Int64(M))
 
-# """
-#     LDLCDecoder(tg, M)
+function _normalize_decoder_schedule(schedule::Symbol)
+    return schedule
+end
 
-# Initialize LDLC decoder with preallocated buffers for forward-backward recursion.
-# """
-# function LDLCDecoder(tg::TannerGraph, M::Int)
-#     fb_allocs = Vector{FBAlloc}(undef, tg.nv)
-#     for vn_idx in 1:tg.nv
-#         d = length(tg.var_nodes[vn_idx].neighbours)
-#         fb_allocs[vn_idx] = FBAlloc(d, M)
-#     end
-#     return LDLCDecoder(tg, fb_allocs, M)
-# end
+function _normalize_decoder_schedule(schedule::AbstractString)
+    return Symbol(schedule)
+end
 
+function _normalize_decoder_schedule(schedule)
+    return schedule
+end
 
-# function variable_node_messages_M_gaussian_allocationless!(tg::TannerGraph, vn_idx::Int64, decoder::LDLCDecoder)
-#     var_node = tg.var_nodes[vn_idx]
-#     d = length(var_node.neighbours)
+function _normalize_decoder_algorithm(algorithm, M)
+    if M !== nothing
+        return Int64(M)
+    elseif algorithm isa AbstractString
+        return Symbol(algorithm)
+    elseif algorithm isa Integer
+        return Int64(algorithm)
+    else
+        return algorithm
+    end
+end
 
-#     @inbounds for j = 1:d
-#         cn_idx, edge_weight = var_node.neighbours[j]   
-#         @views m_nearest!(decoder.mixture_alloc[j], var_node.message[j], var_node.message.mean, decoder.M)
-#     end
+function _validate_decoder_config(schedule::Symbol, algorithm::Union{Symbol,Int64})
+    schedule in (:parallel, :serial) || throw(ArgumentError("Unsupported schedule $(schedule). Choose :parallel or :serial."))
+    if algorithm isa Symbol
+        algorithm in (:nearest, :lsd) || throw(ArgumentError("Unsupported algorithm $(algorithm). Choose :nearest, :lsd, or an integer M."))
+    else
+        algorithm > 0 || throw(ArgumentError("M-Gaussian algorithm requires a positive integer M."))
+    end
+    return nothing
+end
 
-#     forward_backward_recursion!(decoder, var_node.message, d)
+function _validate_decoder_config(schedule, algorithm)
+    throw(ArgumentError("Unsupported decoder configuration. Choose schedule :parallel or :serial and algorithm :nearest, :lsd, or an integer M."))
+end
 
-#     for j = 1:d
-#         cn_idx, _ = var_node.neighbours[j]
-#         idx = var_node.pos_in_check_neighbour[j]
-#         cn = tg.check_nodes[cn_idx]
+function _m_gaussian_allocs(tg::TannerGraph, M::Int64)
+    degrees = unique(length(vn.neighbours) for vn in tg.var_nodes)
+    return Dict(d => FBAlloc(d, M) for d in degrees)
+end
 
-#         cn.messages[idx].mean = decoder.outputs_alloc[j].mean
-#         cn.messages[idx].var = decoder.outputs_alloc[j].var
-#         # cn.messages[idx].log_weight = outputs[j].log_weight
-#     end
+function _ensure_m_gaussian_allocs!(dec::LDLCDecoder)
+    dec.algorithm isa Int64 || return nothing
+    if isempty(dec.m_gaussian_allocs)
+        dec.m_gaussian_allocs = _m_gaussian_allocs(dec.tg, dec.algorithm)
+    end
+    return nothing
+end
 
-# end
+"""
+    run_decoder!(dec::LDLCDecoder, message::Vector{Float64})
 
+Run the decoder with the mutable configuration stored on `dec`.
+"""
+function run_decoder!(dec::LDLCDecoder, message::Vector{Float64})
+    _validate_decoder_config(dec.schedule, dec.algorithm)
+    _ensure_m_gaussian_allocs!(dec)
 
-# function m_nearest!(alloc::Vector{gaussian_log_weight}, g::gaussian_log_weight, y::Float64, M::Int64)
-#     m = g.mean
-#     rhs = (m - y) * h
-#     center = round(rhs)
-#     offset = M ÷ 2
-#     @inbounds for k = 1:M
-#         b_k = center - (k - offset - (M % 2))
-#         alloc[k].vean = m - (b_k / h)
-#         alloc[k].var = g.var
-#         #  = gaussian_log_weight(m - (b_k / h), g.var)
-#     end
-#     return gs
-# end
+    initialize_messages!(dec.tg, message, dec.sigma)
+    dec.tg.search_interval = dec.search_interval
 
+    if dec.schedule == :parallel
+        _run_parallel_decoder!(dec)
+    else
+        _run_serial_decoder!(dec)
+    end
 
-# function forward_backward_recursion!(decoder:LDLCDecoder, g::gaussian_log_weight, d::Int64)
+    _decision_step!(dec)
+    return dec.tg.bp_result
+end
 
-#     forward = decoder.forward_alloc
-#     backward = decoder.backward_alloc
+function _run_parallel_decoder!(dec::LDLCDecoder)
+    @inbounds for _ = 1:dec.max_iterations
+        check_node_iterations!(dec.tg)
+        _variable_node_iterations!(dec)
+    end
+    return nothing
+end
 
-#     forward[1] = decoder.mixture_alloc[1]
-#     for j = 2:d
-#         prod!(forward[j], forward[j-1], decoder.mixture_alloc[j])
-#     end
+function _run_serial_decoder!(dec::LDLCDecoder)
+    @inbounds for _ = 1:dec.max_iterations
+        update_reliability_schedule!(dec.tg)
+        for vn_idx in dec.tg.schedule
+            _update_serial_variable_node!(dec, vn_idx)
+        end
+    end
+    return nothing
+end
 
-#     backward = decoder.backward_alloc[d]
-#     for j = (d-1):-1:1
-#         prod!(backward[j], backward[j+1], decoder.mixture_alloc[j])
-#     end
-    
-#     for j = 1:d
-#         if j == 1
-#             prod!(decoder.mixture_alloc[j], backward[j+1], g)
-#             @views moment_matching!(decoder.outputs_alloc[j], mixtures[j])
-#         elseif  j == d
-#             prod!(decoder.mixture_alloc[j], forward[j-1], g)
-#             @views moment_matching!(decoder.outputs_alloc[j], mixtures[j])
-#         else
-#             prod!(decoder.mixture_alloc[j], forward[j-1], backward[j+1])
-#             prod!(decoder.mixture_alloc[j], g)
-#             @views moment_matching!(decoder.outputs_alloc[j], mixtures[j])
-#         end
-#     end
+function _variable_node_iterations!(dec::LDLCDecoder)
+    @inbounds for vn_idx = 1:dec.tg.nv
+        _variable_node_messages!(dec, vn_idx)
+    end
+    return nothing
+end
 
-# end
+function _update_serial_variable_node!(dec::LDLCDecoder, vn_idx::Int64)
+    vn = dec.tg.var_nodes[vn_idx]
 
+    @inbounds for j = 1:length(vn.neighbours)
+        cn_idx, _ = vn.neighbours[j]
+        vn_pos_idx = vn.pos_in_check_neighbour[j]
+        check_node_message!(vn, dec.tg, cn_idx, j, vn_pos_idx)
+    end
 
+    _variable_node_messages!(dec, vn_idx)
+    return nothing
+end
 
-# function Base.prod!(dest::AbstractVector{gaussian_log_weight}, gs::AbstractVector{gaussian_log_weight}, g::gaussian_log_weight)
-#     n1 = length(gs)
-#     for idx = 1:n1
-#         @views prod!(dest[idx], gs[idx], g)
-#     end
-#     return nothing
-# end
+function _variable_node_messages!(dec::LDLCDecoder, vn_idx::Int64)
+    if dec.algorithm == :nearest
+        variable_node_messages_allocationless!(dec.tg, vn_idx)
+    elseif dec.algorithm == :lsd
+        lsd_variable_node_messages!(dec.tg, vn_idx)
+    else
+        variable_node_messages_M_gaussian_allocationless!(dec.tg, vn_idx, dec)
+    end
+    return nothing
+end
 
-# function Base.prod!(dest::AbstractVector{gaussian_log_weight}, gs1::AbstractVector{gaussian_log_weight}, gs2::AbstractVector{gaussian_log_weight})
-#     n1 = length(gs1)
-#     n2 = length(gs2)
-#     idx = 1
-#     for idx1 = 1:n1
-#         for idx2 = 1:n2
-#             @views prod!(dest[idx], gs1[idx1], gs2[idx2])
-#             idx += 1
-#         end
-#     end
-#     return nothing
-# end
+function _decision_step!(dec::LDLCDecoder)
+    if dec.algorithm == :lsd
+        decision_step_lsd!(dec.tg)
+    elseif dec.algorithm isa Int64
+        decision_step_M_gaussian_allocationless!(dec)
+    else
+        decision_step_nearest!(dec.tg)
+    end
+    return nothing
+end
 
-# function Base.prod!(g::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussian_log_weight)
-#     m1 = g1.mean
-#     m2 = g2.mean
-#     Δ1 = g1.var
-#     Δ2 = g2.var
+"""
+    variable_node_messages_M_gaussian_allocationless!(tg, vn_idx, decoder)
 
-#     Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
-#     m = Δ * (m1 / Δ1 + m2 / Δ2)
-#     c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
+Allocation-conscious M-Gaussian variable node update using workspaces owned by `decoder`.
+"""
+function variable_node_messages_M_gaussian_allocationless!(tg::TannerGraph, vn_idx::Int64, decoder::LDLCDecoder)
+    var_node = tg.var_nodes[vn_idx]
+    d = length(var_node.neighbours)
 
-#     g.mean = m
-#     g.var = max(Δ, MIN_VAR)
-#     g.log_weight = c + g1.log_weight + g2.log_weight    
-#     return nothing
-# end
+    if d == 1
+        cn_idx, _ = var_node.neighbours[1]
+        idx = var_node.pos_in_check_neighbour[1]
+        cn = tg.check_nodes[cn_idx]
 
-# using BenchmarkTools
-# import LatticeDecoder: gaussian_log_weight
-# g = gaussian_log_weight(0.0, 1.0)
-# g1 = gaussian_log_weight(-1.0, 0.5)
-# g2 = gaussian_log_weight(1.0, 0.5)
+        cn.messages[idx].mean = var_node.message.mean
+        cn.messages[idx].var = var_node.message.var
+    else
+        alloc = decoder.m_gaussian_allocs[d]
+        M = decoder.algorithm::Int64
 
-# M = 10
-# gs = gaussian_log_weight[gaussian_log_weight(1.0, 1.0) for _ = 1:M^2]
-# gs1 = gaussian_log_weight[gaussian_log_weight(1.0, 1.0) for _ = 1:3]
-# gs2 = gaussian_log_weight[gaussian_log_weight(-1.0, 1.0) for _ = 1:3]
+        @inbounds for j = 1:d
+            m_nearest!(alloc.mixtures[j], var_node.messages[j], var_node.message.mean, M)
+        end
 
+        forward_backward_recursion!(decoder, var_node.message, d)
 
+        @inbounds for j = 1:d
+            cn_idx, _ = var_node.neighbours[j]
+            idx = var_node.pos_in_check_neighbour[j]
+            cn = tg.check_nodes[cn_idx]
 
+            cn.messages[idx].mean = alloc.outputs[j].mean
+            cn.messages[idx].var = alloc.outputs[j].var
+        end
+    end
 
-# function decision_step!(dec::LDLCDecoder)
-#     tg = dec.tg
-#     for vn_idx in 1:tg.nv
-#         vn = tg.var_nodes[vn_idx]
-#         combined = vn.message
-#         for msg in vn.messages
-#             prod!(combined, msg)
-#         end
-#         tg.bp_result[vn_idx] = combined.mean
-#     end
-# end
+    return nothing
+end
 
+"""
+    forward_backward_recursion!(decoder, g, d)
 
+Forward-backward recursion for the M-Gaussian variable node update.
+"""
+function forward_backward_recursion!(decoder::LDLCDecoder, g::gaussian_log_weight, d::Int64)
+    alloc = decoder.m_gaussian_allocs[d]
+    forward = alloc.forward
+    backward = alloc.backward
+    mixtures = alloc.mixtures
+    combined = alloc.combined
+    outputs = alloc.outputs
+    ws_alloc = alloc.ws_alloc
 
-# function combine_mixture!(dest::Vector{gaussian_log_weight}, mix1::Vector{gaussian_log_weight}, mix2::Vector{gaussian_log_weight}, temp::Vector{gaussian_log_weight})
-#     if isempty(mix1)
-#         dest .= mix2
-#         return
-#     elseif isempty(mix2)
-#         dest .= mix1
-#         return
-#     end
-#     idx = 1
-#     for g1 in mix1
-#         for g2 in mix2
-#             temp[idx].mean = (1 / (1 / g1.var + 1 / g2.var)) * (g1.mean / g1.var + g2.mean / g2.var)
-#             temp[idx].var = max(1 / (1 / g1.var + 1 / g2.var), MIN_VAR)
-#             temp[idx].log_weight = -(g1.mean - g2.mean)^2 / (2 * (g1.var + g2.var)) - log(sqrt(2 * pi * (g1.var + g2.var))) + g1.log_weight + g2.log_weight
-#             idx += 1
-#         end
-#     end
-#     resize!(dest, idx - 1)
-#     dest .= temp[1:idx-1]
-# end
+    forward[1] .= mixtures[1]
+    @inbounds for j = 2:d
+        prod!(forward[j], forward[j - 1], mixtures[j])
+    end
 
+    backward[d] .= mixtures[d]
+    @inbounds for j = (d - 1):-1:1
+        prod!(backward[j], backward[j + 1], mixtures[j])
+    end
 
-# H = [
-#     0    -0.8   0    -0.5   1     0;
-#     0.8   0     0     1     0    -0.5;
-#     0     0.5   1     0     0.8   0;
-#     0     0    -0.5  -0.8   0     1;
-#     1     0     0     0     0.5   0.8;
-#     0.5  -1    -0.8   0     0     0
-# ]
+    @inbounds for j = 1:d
+        if j == 1
+            prod!(combined, backward[j + 1], g)
+        elseif j == d
+            prod!(combined, forward[j - 1], g)
+        else
+            prod!(combined, forward[j - 1], backward[j + 1])
+            prod!(combined, g)
+        end
+        moment_matching!(outputs[j], combined, ws_alloc)
+    end
 
+    return nothing
+end
 
-# tg = initialize_tanner_graph(H)
-# M = 2
+function variable_node_decision_M_gaussian_allocationless!(dec::LDLCDecoder, vn_idx::Int64)
+    var_node = dec.tg.var_nodes[vn_idx]
+    d = length(var_node.neighbours)
+    alloc = dec.m_gaussian_allocs[d]
+    M = dec.algorithm::Int64
 
-# decoder = LDLCDecoder(tg, M)
+    @inbounds for j = 1:d
+        m_nearest!(alloc.mixtures[j], var_node.messages[j], var_node.message.mean, M)
+    end
 
-# function run_decoder!(dec::LDLCDecoder, message:Vector{Float64}, σ::Float64, max_iter::Int64)
+    alloc.forward[1] .= alloc.mixtures[1]
+    @inbounds for j = 2:d
+        prod!(alloc.forward[j], alloc.forward[j - 1], alloc.mixtures[j])
+    end
 
+    prod!(alloc.forward[d], var_node.message)
+    moment_matching!(var_node.message, alloc.forward[d], alloc.ws_alloc)
+    dec.tg.bp_result[vn_idx] = var_node.message.mean
 
-#     initialize_messages!(dec.tg, message, σ)
+    return nothing
+end
 
-#     for i = 1:max_iter
-#         check_node_iterations!(decoder)
-#         variable_node_iterations!(decoder)
-#     end
+function decision_step_M_gaussian_allocationless!(dec::LDLCDecoder)
+    @inbounds for vn_idx = 1:dec.tg.nv
+        variable_node_decision_M_gaussian_allocationless!(dec, vn_idx)
+    end
+    return nothing
+end
 
-#     decision_step!(decoder)
+function run_decoder_parallel!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64)
+    dec.schedule = :parallel
+    dec.sigma = sigma
+    dec.max_iterations = max_iter
+    return run_decoder!(dec, message)
+end
 
-#     return dec.tg.bp_result
-
-# end
-
+function run_decoder_serial!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64)
+    dec.schedule = :serial
+    dec.sigma = sigma
+    dec.max_iterations = max_iter
+    return run_decoder!(dec, message)
+end
