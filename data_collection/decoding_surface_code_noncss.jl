@@ -158,7 +158,7 @@ function main()
         :decoder => ["lsd", "nearest"],
         :schedule => ["serial", "parallel"],
         :d => [3, 5],
-        :sigmas => [[1.5, 1.45, 1.4, 1.35, 1.3, 1.25, 1.2, 1.15, 1.1, 1.05, 1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5] ./ sqrt(2π)],
+        :sigmas => [collect(0.5:0.05:1.5) ./ sqrt(2π)],
         :local_search => [false, true],
         :local_search_lll => [false],
         :sphere_decoding => [false, true],
