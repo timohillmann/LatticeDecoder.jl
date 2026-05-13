@@ -3,6 +3,10 @@ using LinearAlgebra
 
 const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
 
+include(joinpath(@__DIR__, "data_collection_utils.jl"))
+
+ensure_data_collection_workers!()
+
 include(joinpath(REPO_ROOT, "experiments", "decode_qldlc_codes.jl"))
 
 @everywhere using LinearAlgebra
@@ -34,19 +38,20 @@ function run_samples(;
         full_basis,
     )
 
+    tanner_graph = initialize_tanner_graph(H)
+    ldlc_decoder = LDLCDecoder(
+        tanner_graph;
+        schedule = schedule,
+        algorithm = decoder,
+        sigma = σ,
+        max_iterations = iterations,
+        search_interval = search_radius,
+    )
+
     return @distributed (+) for _ in 1:n_samples
         error_vector = sample_error(σ, size(H_reduced, 2))
         received = copy(error_vector)
 
-        tanner_graph = initialize_tanner_graph(H)
-        ldlc_decoder = LDLCDecoder(
-            tanner_graph;
-            schedule = schedule,
-            algorithm = decoder,
-            sigma = σ,
-            max_iterations = iterations,
-            search_interval = search_radius,
-        )
 
         bp_estimate = run_decoder!(ldlc_decoder, received)
         decoded_integer_correction = hard_decision(bp_estimate, H_reduced)
@@ -116,7 +121,10 @@ function run_qldlc_experiment!(
     param_ranges::Dict,
     n_samples::Int,
     repeats::Int,
+    max_errors::Union{Nothing,Int} = DEFAULT_MAX_ERRORS,
 )
+    accumulated_errors = accumulated_errors_by_strong_id(path)
+
     for _ in 1:repeats
         for code_name in code_names
             problem = qldlc_problem(code_name)
@@ -126,6 +134,18 @@ function run_qldlc_experiment!(
 
                 for noise_scale in params[:sigmas]
                     σ = noise_scale / sqrt(2π)
+                    meta = experiment_metadata(
+                        params,
+                        σ,
+                        size(problem.H_reduced, 2),
+                        problem.code_name,
+                    )
+                    strong_id = LatticeDecoder.get_strong_id_from_json(meta)
+
+                    if max_errors !== nothing && get(accumulated_errors, strong_id, 0) >= max_errors
+                        continue
+                    end
+
                     errors = run_samples(;
                         H = problem.H,
                         H_reduced = problem.H_reduced,
@@ -144,13 +164,6 @@ function run_qldlc_experiment!(
                         full_basis = params[:full_basis],
                     )
 
-                    meta = experiment_metadata(
-                        params,
-                        σ,
-                        size(problem.H_reduced, 2),
-                        problem.code_name,
-                    )
-
                     add_data!(
                         String(path);
                         shots = n_samples,
@@ -158,6 +171,7 @@ function run_qldlc_experiment!(
                         decoder = string(params[:decoder]),
                         json_metadata = meta,
                     )
+                    accumulated_errors[strong_id] = get(accumulated_errors, strong_id, 0) + errors
                 end
             end
 
@@ -167,9 +181,6 @@ function run_qldlc_experiment!(
 end
 
 function main()
-    target_workers = 8
-    ensure_worker_count(target_workers)
-
     path = "results/qldlc/generated_qldlc_overcomplete.csv"
 
 code_names = [
@@ -307,15 +318,15 @@ code_names = [
         :decoder => ["lsd"],
         :schedule => ["serial"],
         :sigmas => [[0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]],
-        :local_search => [false],
-        :local_search_order => [[1]],
+        :local_search => [true],
+        :local_search_order => [[1, 1, 1, 1, 1, 1, 1, 1]],
         :local_search_lll => [false],
-        :sphere_decoding => [false],
+        :sphere_decoding => [true],
         :full_basis => [false],
     )
 
-    n_samples = 100
-    repeats = 50
+    n_samples = 1000
+    repeats = 10
 
     run_qldlc_experiment!(
         path;
@@ -323,6 +334,7 @@ code_names = [
         param_ranges,
         n_samples,
         repeats,
+        max_errors = DEFAULT_MAX_ERRORS,
     )
 end
 
