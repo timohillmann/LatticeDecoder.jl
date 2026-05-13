@@ -24,6 +24,7 @@ mutable struct LDLCDecoder
     sigma::Float64
     max_iterations::Int64
     search_interval::Float64
+    lsd_beta::Float64
     m_gaussian_allocs::Dict{Int,FBAlloc}
 end
 
@@ -34,13 +35,15 @@ function LDLCDecoder(
     sigma::Float64=1.0,
     max_iterations::Int64=25,
     search_interval::Float64=1.5,
+    lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA,
     M=nothing,
 )
     decoder_schedule = _normalize_decoder_schedule(schedule)
     decoder_algorithm = _normalize_decoder_algorithm(algorithm, M)
     _validate_decoder_config(decoder_schedule, decoder_algorithm)
+    _validate_lsd_beta(lsd_beta)
     allocs = decoder_algorithm isa Int64 ? _m_gaussian_allocs(tg, decoder_algorithm) : Dict{Int,FBAlloc}()
-    return LDLCDecoder(tg, decoder_schedule, decoder_algorithm, sigma, max_iterations, search_interval, allocs)
+    return LDLCDecoder(tg, decoder_schedule, decoder_algorithm, sigma, max_iterations, search_interval, lsd_beta, allocs)
 end
 
 LDLCDecoder(tg::TannerGraph, M::Int) = LDLCDecoder(tg; schedule=:parallel, algorithm=Int64(M))
@@ -107,6 +110,7 @@ function run_decoder!(dec::LDLCDecoder, message::Vector{Float64})
 
     initialize_messages!(dec.tg, message, dec.sigma)
     dec.tg.search_interval = dec.search_interval
+    dec.tg.lsd_beta = dec.lsd_beta
 
     if dec.schedule == :parallel
         _run_parallel_decoder!(dec)
@@ -285,16 +289,20 @@ function decision_step_M_gaussian_allocationless!(dec::LDLCDecoder)
     return nothing
 end
 
-function run_decoder_parallel!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64)
+function run_decoder_parallel!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64; lsd_beta::Float64=dec.lsd_beta)
+    _validate_lsd_beta(lsd_beta)
     dec.schedule = :parallel
     dec.sigma = sigma
     dec.max_iterations = max_iter
+    dec.lsd_beta = lsd_beta
     return run_decoder!(dec, message)
 end
 
-function run_decoder_serial!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64)
+function run_decoder_serial!(dec::LDLCDecoder, message::Vector{Float64}, sigma::Float64, max_iter::Int64; lsd_beta::Float64=dec.lsd_beta)
+    _validate_lsd_beta(lsd_beta)
     dec.schedule = :serial
     dec.sigma = sigma
     dec.max_iterations = max_iter
+    dec.lsd_beta = lsd_beta
     return run_decoder!(dec, message)
 end

@@ -58,6 +58,12 @@ function test_ldlc_decoder_api()
     @test run_decoder!(keyword_m_decoder, y) ≈ m_reference
     @test keyword_m_decoder.algorithm == 2
 
+    beta_decoder = LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, sigma=sigma, max_iterations=iterations, lsd_beta=2.0)
+    beta_reference = copy(run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_beta=2.0))
+    @test run_decoder!(beta_decoder, y) ≈ beta_reference
+    @test beta_decoder.lsd_beta == 2.0
+    @test beta_decoder.tg.lsd_beta == 2.0
+
     decoder.sigma = 0.25
     decoder.max_iterations = 1
     @test run_decoder!(decoder, y) === decoder.tg.bp_result
@@ -75,6 +81,8 @@ function test_ldlc_decoder_api()
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:paper_lsd)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=2.5)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=0)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_beta=0.0)
+    @test_throws ArgumentError run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_beta=0.0)
 end
 
 function test_ldlc_decoder_api_classical_ldlc_sizes()

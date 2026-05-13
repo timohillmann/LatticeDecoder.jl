@@ -23,7 +23,7 @@ function check_node_message!(vn::VariableNode, tg::TannerGraph, cn_idx::Int64, n
 
     edge_weight = vn.messages[nb_idx].period
     vn.messages[nb_idx].mean = -mean_sum / edge_weight
-    vn.messages[nb_idx].var = max(var_sum / edge_weight^2, MIN_VAR)
+    vn.messages[nb_idx].var = max(var_sum / edge_weight^2, LatticeDecoder.MIN_VAR)
     vn.messages[nb_idx].period = edge_weight
 end
 
@@ -137,7 +137,8 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5)
+function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5, lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+    _validate_lsd_beta(lsd_beta)
 
     if decoder == "nearest"
         update_variable_node! = update_variable_node_nearest!
@@ -161,6 +162,7 @@ function run_serial_belief_propagation!(tg::TannerGraph, message::Vector{Float64
     # initilization
     initialize_messages!(tg, message, σ)
     tg.search_interval = search_interval
+    tg.lsd_beta = lsd_beta
 
     # basic iteration
     for i in 1:max_iter

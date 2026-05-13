@@ -1,5 +1,7 @@
 module LatticeDecoder
 
+include("constants.jl")
+
 # Code code_constructors
 export GkpRepCode, QuantumCode, gkp_rep_code, rep_code_logical, is_logical_error, GKP_Rep_Code
 include("code_constructors/rep_codes.jl")
@@ -21,7 +23,6 @@ include("bp_algorithms/parallel_bp_log_weight.jl")
 export run_serial_belief_propagation!, run_decoder_serial!
 include("bp_algorithms/serial_bp_log_weight.jl")
 
-const LD = LatticeDecoder
 include("bp_algorithms/lsd_allocations.jl")
 include("bp_algorithms/lsd_allocations_decoder.jl")
 include("bp_algorithms/lsd_allocations_runner.jl")

@@ -1,9 +1,6 @@
 using JSON3
 using SHA
 
-const HEADER = "     shots,    errors,  discards, seconds,decoder,strong_id,json_metadata,custom_counts"
-
-
 """
     write_csv_line(file::IO,
     shots::Int,
@@ -97,7 +94,7 @@ function add_data!(path::String;
 
     if !isfile(path)
         open(path, "w") do file
-            println(file, HEADER)
+            println(file, LatticeDecoder.HEADER)
         end
     end
 
@@ -115,7 +112,7 @@ function test_write_csv_line()
     # if file does not exist create it and write header
     if !isfile(path)
         open(path, "w") do file
-            println(file, HEADER)
+            println(file, LatticeDecoder.HEADER)
         end
     end
 

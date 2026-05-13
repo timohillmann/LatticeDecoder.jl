@@ -1,9 +1,9 @@
-function build_lsd_input_excluding!(allocs::LSDAllocations, vn::LD.VariableNode, exclude_idx::Int)
+function build_lsd_input_excluding!(allocs::LSDAllocations, vn::LD.VariableNode, exclude_idx::Int, beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+    beta > 0 || throw(ArgumentError("LSD beta must be positive."))
     d = length(vn.messages)
     n = d
 
     Vinv = 0.0
-    beta = 3.5
     mean_invvar_sum = 0.0
     out_idx = 1
 
@@ -19,7 +19,7 @@ function build_lsd_input_excluding!(allocs::LSDAllocations, vn::LD.VariableNode,
             allocs.p_vector[out_idx] = msg.mean * msg.period
             allocs.coeff_vector[out_idx] = inv_var / msg.period
 
-            if abs(msg.period) < LSD_W_MIN
+            if abs(msg.period) < LatticeDecoder.LSD_W_MIN
                 beta = max(beta, 1.0 / sqrt(msg.var * msg.period^2))
             end
             out_idx += 1
@@ -36,7 +36,7 @@ function build_lsd_input_excluding!(allocs::LSDAllocations, vn::LD.VariableNode,
     allocs.p_vector[n] = channel_msg.mean * channel_msg.period
     allocs.coeff_vector[n] = inv_var / channel_msg.period
 
-    if abs(channel_msg.period) < LSD_W_MIN
+    if abs(channel_msg.period) < LatticeDecoder.LSD_W_MIN
         beta = max(beta, 1.0 / sqrt(channel_msg.var * channel_msg.period^2))
     end
 
@@ -68,12 +68,12 @@ function build_lsd_input_excluding!(allocs::LSDAllocations, vn::LD.VariableNode,
     return n, var, beta, beta1, u_d
 end
 
-function build_lsd_input_all!(allocs::LSDAllocations, vn::LD.VariableNode)
+function build_lsd_input_all!(allocs::LSDAllocations, vn::LD.VariableNode, beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+    beta > 0 || throw(ArgumentError("LSD beta must be positive."))
     d = length(vn.messages)
     n = d + 1
 
     Vinv = 0.0
-    beta = 3.5
     mean_invvar_sum = 0.0
 
     @inbounds for i in 1:d
@@ -87,7 +87,7 @@ function build_lsd_input_all!(allocs::LSDAllocations, vn::LD.VariableNode)
         allocs.p_vector[i] = msg.mean * msg.period
         allocs.coeff_vector[i] = inv_var / msg.period
 
-        if abs(msg.period) < LSD_W_MIN
+        if abs(msg.period) < LatticeDecoder.LSD_W_MIN
             beta = max(beta, 1.0 / sqrt(msg.var * msg.period^2))
         end
     end
@@ -102,7 +102,7 @@ function build_lsd_input_all!(allocs::LSDAllocations, vn::LD.VariableNode)
     allocs.p_vector[n] = channel_msg.mean * channel_msg.period
     allocs.coeff_vector[n] = inv_var / channel_msg.period
 
-    if abs(channel_msg.period) < LSD_W_MIN
+    if abs(channel_msg.period) < LatticeDecoder.LSD_W_MIN
         beta = max(beta, 1.0 / sqrt(channel_msg.var * channel_msg.period^2))
     end
 
@@ -192,7 +192,7 @@ function simplified_lsd_candidates!(allocs::LSDAllocations, n::Int, var::Float64
             if k == 1
                 count = _append_candidate!(allocs, count, dist[k], var, sum_az)
                 if count == 1
-                    beta = min(beta1, sqrt(dist[k] - 2.0 * log(LSD_EPSILON)))
+                    beta = min(beta1, sqrt(dist[k] - 2.0 * log(LatticeDecoder.LSD_EPSILON)))
                     beta_sq = beta^2
                 end
 
@@ -265,11 +265,11 @@ function moment_match_candidates!(out::LD.gaussian_log_weight, allocs::LSDAlloca
 
     variance = second_moment - mean^2
     out.mean = mean
-    out.var = max(variance, LD.MIN_VAR)
+    out.var = max(variance, LatticeDecoder.MIN_VAR)
     return true
 end
 
-function lsd_variable_node_message_optimized!(cn_message::LD.gaussian_log_weight, vn::LD.VariableNode, nb_idx::Int)
+function lsd_variable_node_message_optimized!(cn_message::LD.gaussian_log_weight, vn::LD.VariableNode, nb_idx::Int, beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
     d = length(vn.messages)
     allocs = get_lsd_allocations(d)
 
@@ -282,7 +282,7 @@ function lsd_variable_node_message_optimized!(cn_message::LD.gaussian_log_weight
         return 1
     end
 
-    n, var, beta, beta1, u_d = build_lsd_input_excluding!(allocs, vn, nb_idx)
+    n, var, beta, beta1, u_d = build_lsd_input_excluding!(allocs, vn, nb_idx, beta)
     count = simplified_lsd_candidates!(allocs, n, var, beta, beta1, u_d)
     if count == 0
         return 0
@@ -315,7 +315,7 @@ function lsd_variable_node_messages_optimized!(tg::LD.TannerGraph, vn_idx::Int64
         idx = vn.pos_in_check_neighbour[j]
         cn = tg.check_nodes[cn_idx]
 
-        n, var, beta, beta1, u_d = build_lsd_input_excluding!(allocs, vn, j)
+        n, var, beta, beta1, u_d = build_lsd_input_excluding!(allocs, vn, j, tg.lsd_beta)
         count = simplified_lsd_candidates!(allocs, n, var, beta, beta1, u_d)
         if count > 0
             moment_match_candidates!(cn.messages[idx], allocs, count, var)
@@ -333,19 +333,19 @@ function lsd_variable_node_decision_optimized!(bp_result::Vector{Float64}, tg::L
     if n == 2
         @inbounds begin
             msg1 = vn.messages[1]
-            if isapprox(msg1.var, LD.MIN_VAR)
+            if isapprox(msg1.var, LatticeDecoder.MIN_VAR)
                 bp_result[vn_idx] = msg1.mean
                 return 1
             end
             msg2 = vn.message
-            if isapprox(msg2.var, LD.MIN_VAR)
+            if isapprox(msg2.var, LatticeDecoder.MIN_VAR)
                 bp_result[vn_idx] = msg2.mean
                 return 1
             end
         end
     end
 
-    n, var, beta, beta1, u_d = build_lsd_input_all!(allocs, vn)
+    n, var, beta, beta1, u_d = build_lsd_input_all!(allocs, vn, tg.lsd_beta)
     count = simplified_lsd_candidates!(allocs, n, var, beta, beta1, u_d)
     if count > 0
         moment_match_candidates!(vn.message, allocs, count, var)

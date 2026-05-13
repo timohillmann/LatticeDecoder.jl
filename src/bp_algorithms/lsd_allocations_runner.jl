@@ -27,13 +27,16 @@ function run_belief_propagation_lsd_optimized!(
     σ::Float64,
     max_iter::Int64;
     search_interval::Float64=1.5,
+    lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA,
     threaded::Bool=false,
 )
+    _validate_lsd_beta(lsd_beta)
     if threaded
         throw(ArgumentError("Internal threading is disabled. Use outer-loop threading instead and call with threaded=false."))
     end
 
     tg.search_interval = search_interval
+    tg.lsd_beta = lsd_beta
     LD.initialize_messages!(tg, message, σ)
 
     @inbounds for _ in 1:max_iter

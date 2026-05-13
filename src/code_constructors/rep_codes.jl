@@ -1,7 +1,4 @@
 
-
-ACCEPTANCE_THRESHOLD = 1E-5
-
 struct QuantumCode
     code::AbstractMatrix{Float64}
     logical::AbstractMatrix{Float64}

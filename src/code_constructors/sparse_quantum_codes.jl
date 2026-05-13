@@ -3,8 +3,6 @@ using NPZ
 using Random
 using SparseArrays
 
-const DEFAULT_SPARSE_CODE_MAX_ITERS = 500_000
-
 """
     load_sparse_quantum_code(path; hx_key=:Hx, hz_key=:Hz, balance_weights=false)
 
@@ -31,7 +29,7 @@ function load_sparse_quantum_code(
 end
 
 """
-    enlarge_css_generators(Hx, Hz; p=2, method=:heuristic, max_iters=500_000, rng=Random.default_rng())
+    enlarge_css_generators(Hx, Hz; p=2, method=:heuristic, max_iters=LatticeDecoder.DEFAULT_SPARSE_CODE_MAX_ITERS, rng=Random.default_rng())
 
 Enlarge CSS check matrices into q- and p-sector lattice generators. The
 default `:heuristic` method selects independent rows and appends GKP
@@ -43,7 +41,7 @@ function enlarge_css_generators(
     Hz;
     p::Integer=2,
     method::Symbol=:heuristic,
-    max_iters::Integer=DEFAULT_SPARSE_CODE_MAX_ITERS,
+    max_iters::Integer=LatticeDecoder.DEFAULT_SPARSE_CODE_MAX_ITERS,
     rng::AbstractRNG=Random.default_rng(),
 )
     Hx_int, Hz_int = _validate_css_inputs(Hx, Hz, p)
@@ -76,7 +74,7 @@ function write_enlarged_sparse_quantum_code(
     hz_key::Union{Symbol,String}=:Hz,
     p::Integer=2,
     method::Symbol=:heuristic,
-    max_iters::Integer=DEFAULT_SPARSE_CODE_MAX_ITERS,
+    max_iters::Integer=LatticeDecoder.DEFAULT_SPARSE_CODE_MAX_ITERS,
     rng::AbstractRNG=Random.default_rng(),
 )
     loaded = load_sparse_quantum_code(input_path; hx_key=hx_key, hz_key=hz_key)
@@ -346,7 +344,10 @@ function _select_independent_columns(G::AbstractMatrix{Int}, r::Int, p::Int; max
     best = Vector{Int}()
     best_score = Inf
 
-    for _ in 1:max_iters
+    for iter in 1:max_iters
+        if iter % 1_000 == 1
+            print("Selecting independent columns: iteration $iter/$(max_iters)\r")
+        end
         shuffle!(rng, perm)
         cols = _independent_indices((j -> @view(G[:, j])), n, r, p; order=perm)
         if length(cols) == r
@@ -359,6 +360,7 @@ function _select_independent_columns(G::AbstractMatrix{Int}, r::Int, p::Int; max
     end
 
     length(best) == r || throw(ArgumentError("could not find $(r) independent columns modulo $(p) after $(max_iters) iterations"))
+    print("\n")
     return best
 end
 
@@ -368,8 +370,11 @@ function _select_independent_rows(G::AbstractMatrix{Int}, r::Int, p::Int; max_it
     best = Vector{Int}()
     best_score = Inf
 
-    for _ in 1:max_iters
+    for iter in 1:max_iters
         shuffle!(rng, perm)
+        if iter % 1_000 == 1
+            print("Selecting independent rows: iteration $(iter)/$(max_iters)\r")
+        end
         rows = _independent_indices((i -> @view(G[i, :])), k, r, p; order=perm)
         if length(rows) == r
             score = _gram_logdet(transpose(@view(G[rows, :])))
@@ -381,6 +386,7 @@ function _select_independent_rows(G::AbstractMatrix{Int}, r::Int, p::Int; max_it
     end
 
     length(best) == r || throw(ArgumentError("could not find $(r) independent rows modulo $(p) after $(max_iters) iterations"))
+    print("\n")
     return best
 end
 

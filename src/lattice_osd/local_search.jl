@@ -9,15 +9,56 @@ struct LocalSearch
     lll_reduction::Bool
     order::Vector{Int64}
     candidates::Vector{Vector{Int64}}
+    candidate_supports::Vector{Vector{Int64}}
     sphere_decoding::Bool
     full_basis::Bool
+    search::Symbol
 end
 
 function LocalSearch(w::Int64, G::AbstractMatrix{Float64}, order::Vector{Int64}, lll_reduction::Bool, sphere_decoding::Bool, full_basis::Bool)
+    return LocalSearch(w, G, order; lll_reduction=lll_reduction, sphere_decoding=sphere_decoding, full_basis=full_basis)
+end
 
-    candidates = full_basis ? Vector{Vector{Int64}}() : generate_candidates(w, order)
-    return LocalSearch(w, G, lll_reduction, order, candidates, sphere_decoding, full_basis)
-end 
+function LocalSearch(
+    w::Int64,
+    G::AbstractMatrix{Float64},
+    order::Vector{Int64};
+    lll_reduction::Bool=false,
+    sphere_decoding::Bool=false,
+    full_basis::Bool=false,
+    search=:restricted,
+)
+    search_mode = _normalize_local_search_mode(search)
+    _validate_local_search_config(search_mode, sphere_decoding)
+
+    candidate_length = search_mode == :full_enumeration ? size(G, 2) : w
+    candidates = full_basis && search_mode == :restricted ? Vector{Vector{Int64}}() : generate_candidates(candidate_length, order)
+    candidate_supports = [findall(!iszero, candidate) for candidate in candidates]
+
+    return LocalSearch(w, G, lll_reduction, order, candidates, candidate_supports, sphere_decoding, full_basis, search_mode)
+end
+
+function _normalize_local_search_mode(search::Symbol)
+    return search
+end
+
+function _normalize_local_search_mode(search::AbstractString)
+    return Symbol(search)
+end
+
+function _normalize_local_search_mode(search)
+    return search
+end
+
+function _validate_local_search_config(search::Symbol, sphere_decoding::Bool)
+    search in (:restricted, :full_enumeration) || throw(ArgumentError("Unsupported local search mode $(search). Choose :restricted or :full_enumeration."))
+    search == :full_enumeration && sphere_decoding && throw(ArgumentError("search=:full_enumeration cannot be combined with sphere_decoding=true."))
+    return nothing
+end
+
+function _validate_local_search_config(search, sphere_decoding::Bool)
+    throw(ArgumentError("Unsupported local search mode $(search). Choose :restricted or :full_enumeration."))
+end
 
 
 function generate_value_sets(rs::Vector{Int64}, i::Int64)
@@ -56,6 +97,11 @@ end
 
 
 function local_search!(y::Vector{Float64}, λ::Vector{Float64}, dec::Vector{Int64},lsd::LocalSearch)
+    _validate_local_search_config(lsd.search, lsd.sphere_decoding)
+    if lsd.search == :full_enumeration
+        return _full_enumeration_search!(y, dec, lsd)
+    end
+
     if lsd.full_basis
         S = 1:size(lsd.G, 2)
     else
@@ -90,6 +136,24 @@ function local_search!(y::Vector{Float64}, λ::Vector{Float64}, dec::Vector{Int6
     return nothing
 end
 
+function _full_enumeration_search!(y::Vector{Float64}, dec::Vector{Int64}, lsd::LocalSearch)
+    size(lsd.G, 1) == length(y) || throw(DimensionMismatch("length(y) must match size(G, 1)"))
+    size(lsd.G, 2) == length(dec) || throw(DimensionMismatch("length(dec) must match size(G, 2)"))
+
+    r = y - lsd.G * dec
+
+    if lsd.lll_reduction
+        B, T, _Q, _R = lll_reduce(Matrix(lsd.G))
+        u = _full_basis_candidate_cvp(B, r, lsd.candidates, lsd.candidate_supports)
+        dec .+= round.(Int64, T * u)
+    else
+        u = _full_basis_candidate_cvp(lsd.G, r, lsd.candidates, lsd.candidate_supports)
+        dec .+= u
+    end
+
+    return nothing
+end
+
 function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSearch)
     best_u = zeros(Int64, size(A, 2))
     best_dist = sum(abs2, r)
@@ -103,6 +167,46 @@ function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSea
     end
     return best_u
 end 
+
+function _full_basis_candidate_cvp(
+    A::AbstractMatrix{Float64},
+    r::Vector{Float64},
+    candidates::Vector{Vector{Int64}},
+    candidate_supports::Vector{Vector{Int64}},
+)
+    best_u = zeros(Int64, size(A, 2))
+    residual = copy(r)
+    best_dist = sum(abs2, r)
+
+    for (candidate, support) in zip(candidates, candidate_supports)
+        residual .= r
+        _subtract_candidate!(residual, A, candidate, support)
+        dist = sum(abs2, residual)
+        if dist < best_dist
+            best_dist = dist
+            best_u .= candidate
+        end
+    end
+
+    return best_u
+end
+
+function _subtract_candidate!(
+    residual::Vector{Float64},
+    A::AbstractMatrix{Float64},
+    candidate::Vector{Int64},
+    support::Vector{Int64},
+)
+    nrows = size(A, 1)
+    @inbounds for j in support
+        c = candidate[j]
+        cf = Float64(c)
+        for i in 1:nrows
+            residual[i] -= A[i, j] * cf
+        end
+    end
+    return residual
+end
 
 
 function select_basis(λ::Vector{Float64}, n_faults::Int64)
@@ -271,7 +375,7 @@ function sphere_decode_small(B::AbstractMatrix{<:Real}, r::AbstractVector{<:Real
             diff = (m - center)
             contrib = (Rdiag[level] * diff) ^ 2
             metric_here = contrib + partial[level+1]
-            if metric_here < best_dist2 - 1e-15   # allow tiny eps
+            if metric_here < best_dist2 - LatticeDecoder.SPHERE_DECODER_PRUNE_ATOL
                 # accept candidate and go deeper
                 u[level] = m
                 partial[level] = metric_here
@@ -297,12 +401,12 @@ function sphere_decode_small(B::AbstractMatrix{<:Real}, r::AbstractVector{<:Real
             # To be safe, stop when: (Rdiag[level] * (offset - 0.5))^2 + partial[level+1] >= best_dist2
             # Using (offset-0.5) as approximate lower bound for |m-center| at that offset
             approx_lower = (Rdiag[level] * max(0.0, offset - 0.5))^2 + partial[level+1]
-            if approx_lower >= best_dist2 - 1e-15
+            if approx_lower >= best_dist2 - LatticeDecoder.SPHERE_DECODER_PRUNE_ATOL
                 break
             end
 
             # safety cap (avoid infinite loop): if offset grows too large relative to best_dist2, break
-            if offset > 1000
+            if offset > LatticeDecoder.SPHERE_DECODER_OFFSET_CAP
                 break
             end
 

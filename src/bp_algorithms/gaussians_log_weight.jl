@@ -1,5 +1,3 @@
-const MIN_VAR::Float64 = 1e-10
-
 abstract type Gaussian end
 
 """
@@ -14,7 +12,7 @@ mutable struct gaussian_log_weight <: Gaussian
     log_weight::Float64
     period::Float64
     gaussian_log_weight(mean, var, log_weight, period) =
-        new(mean, max(var, MIN_VAR), log_weight, period)
+        new(mean, max(var, LatticeDecoder.MIN_VAR), log_weight, period)
 end
 
 gaussian_log_weight(mean::Float64, var::Float64, log_weight::Float64) =
@@ -78,7 +76,7 @@ function Base.prod!(g1::gaussian_log_weight, g2::gaussian_log_weight)
     c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
 
     g1.mean = m
-    g1.var = max(Δ, MIN_VAR)
+    g1.var = max(Δ, LatticeDecoder.MIN_VAR)
     g1.log_weight = c + g1.log_weight + g2.log_weight
 end
 
@@ -100,7 +98,7 @@ function Base.prod(g1::gaussian_log_weight, g2::gaussian_log_weight)
     Δ1 = g1.var
     Δ2 = g2.var
 
-    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
+    Δ = max(1 / (1 / Δ1 + 1 / Δ2), LatticeDecoder.MIN_VAR)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
     c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
     return gaussian_log_weight(m, Δ, c + g1.log_weight + g2.log_weight)
@@ -124,11 +122,11 @@ function Base.prod!(g::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussia
     Δ1 = g1.var
     Δ2 = g2.var
 
-    Δ = max(1 / (1 / Δ1 + 1 / Δ2), MIN_VAR)
+    Δ = max(1 / (1 / Δ1 + 1 / Δ2), LatticeDecoder.MIN_VAR)
     m = Δ * (m1 / Δ1 + m2 / Δ2)
     c = -(m1 - m2)^2 / (2 * (Δ1 + Δ2)) - log((sqrt(2 * pi * (Δ1 + Δ2))))
     g.mean = m
-    g.var = max(Δ, MIN_VAR)
+    g.var = max(Δ, LatticeDecoder.MIN_VAR)
     g.log_weight = c + g1.log_weight + g2.log_weight
     # return gaussian_log_weight(m, Δ, c + g1.log_weight + g2.log_weight)
 end
@@ -289,7 +287,7 @@ function Base.sum!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaus
     Δ = w1 * (Δ1 + m1^2) + w2 * (Δ2 + m2^2) - m^2
 
     g_out.mean = m
-    g_out.var = max(Δ, MIN_VAR)
+    g_out.var = max(Δ, LatticeDecoder.MIN_VAR)
     g_out.log_weight = 0.0
     return nothing
 end
@@ -375,7 +373,7 @@ function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_lo
     # end
 
     g.mean = m
-    g.var = max(Δ, MIN_VAR)
+    g.var = max(Δ, LatticeDecoder.MIN_VAR)
 end
 
 
@@ -409,7 +407,7 @@ function moment_matching!(g::gaussian_log_weight, gs::AbstractVector{gaussian_lo
 
         # Update g in-place
         g.mean = m
-        g.var = ifelse(Δ < MIN_VAR, MIN_VAR, Δ)
+        g.var = ifelse(Δ < LatticeDecoder.MIN_VAR, LatticeDecoder.MIN_VAR, Δ)
     end
 end
 
@@ -438,7 +436,7 @@ function divide(g1::gaussian_log_weight, g2::gaussian_log_weight)
     Δ1 = g1.var
     Δ2 = g2.var
 
-    if Δ1 < MIN_VAR || Δ2 < MIN_VAR
+    if Δ1 < LatticeDecoder.MIN_VAR || Δ2 < LatticeDecoder.MIN_VAR
         error("Variance is too small")
     end
 
@@ -453,8 +451,8 @@ function divide(g1::gaussian_log_weight, g2::gaussian_log_weight)
     end
 
     # Δ = 1 / (1 / Δ1 - 1 / Δ2)
-    Δ = max(Δ1 * Δ2 / (Δ2 - Δ1), MIN_VAR)
-    @assert Δ >= MIN_VAR
+    Δ = max(Δ1 * Δ2 / (Δ2 - Δ1), LatticeDecoder.MIN_VAR)
+    @assert Δ >= LatticeDecoder.MIN_VAR
     # m = Δ * (m1 / Δ1 - m2 / Δ2)
     m = (Δ2 * m1 - Δ1 * m2) / (Δ2 - Δ1)
     log_β = (m1 - m2)^2 / (2.0 * (Δ2 - Δ1)) + 0.5 * log(2.0 * pi) + log(Δ2) - 0.5 * log(Δ2 - Δ1) + g1.log_weight - g2.log_weight
@@ -500,7 +498,7 @@ function divide!(g_out::gaussian_log_weight, g1::gaussian_log_weight, g2::gaussi
     Δ1 = g1.var
     Δ2 = g2.var
 
-    if Δ1 < MIN_VAR || Δ2 < MIN_VAR
+    if Δ1 < LatticeDecoder.MIN_VAR || Δ2 < LatticeDecoder.MIN_VAR
         error("Variance is too small")
     end
 

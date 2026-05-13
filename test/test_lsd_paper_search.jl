@@ -3,6 +3,7 @@ using Test
 module TestLSDPaperSearch
 
 using Test
+using LatticeDecoder
 
 struct QuantumCode
     code
@@ -33,7 +34,7 @@ end
     @test !isempty(result.D)
     @test minimum(result.D) ≈ 0.0
     @test all(result.D .<= inputs.β^2)
-    @test result.visits < MAX_ITER
+    @test result.visits < LatticeDecoder.MAX_ITER
     @test length(old_D) > length(result.D)
 
     default_L, default_D = simplified_lsd(inputs)

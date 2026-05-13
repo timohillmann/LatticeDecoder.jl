@@ -1,8 +1,3 @@
-const LSD_W_MIN = 0.95
-const LSD_EPSILON = 1e-10
-const LSD_DEFAULT_MAX_CANDIDATES = 128
-const LSD_TLS_ALLOCATIONS_KEY = :lsd_perf_overlay_allocations
-
 mutable struct LSDAllocations
     t_vector::Vector{Float64}
     g_vector::Vector{Float64}
@@ -78,15 +73,15 @@ end
 
 function _task_allocations_bucket()
     tls = task_local_storage()
-    bucket = get(tls, LSD_TLS_ALLOCATIONS_KEY, nothing)
+    bucket = get(tls, LatticeDecoder.LSD_TLS_ALLOCATIONS_KEY, nothing)
     if bucket === nothing
         bucket = Dict{Int, LSDAllocations}()
-        tls[LSD_TLS_ALLOCATIONS_KEY] = bucket
+        tls[LatticeDecoder.LSD_TLS_ALLOCATIONS_KEY] = bucket
     end
     return bucket::Dict{Int, LSDAllocations}
 end
 
-function get_lsd_allocations(msg_count::Int; max_candidates::Int=LSD_DEFAULT_MAX_CANDIDATES)
+function get_lsd_allocations(msg_count::Int; max_candidates::Int=LatticeDecoder.LSD_DEFAULT_MAX_CANDIDATES)
     bucket = _task_allocations_bucket()
     allocs = get!(bucket, msg_count) do
         LSDAllocations(msg_count, max_candidates)
@@ -97,8 +92,8 @@ end
 
 function clear_lsd_allocations!()
     tls = task_local_storage()
-    if haskey(tls, LSD_TLS_ALLOCATIONS_KEY)
-        empty!(tls[LSD_TLS_ALLOCATIONS_KEY])
+    if haskey(tls, LatticeDecoder.LSD_TLS_ALLOCATIONS_KEY)
+        empty!(tls[LatticeDecoder.LSD_TLS_ALLOCATIONS_KEY])
     end
     return nothing
 end
