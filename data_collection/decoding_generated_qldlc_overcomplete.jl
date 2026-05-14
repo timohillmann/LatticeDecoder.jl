@@ -132,8 +132,7 @@ function run_qldlc_experiment!(
             for params in parameter_grid(param_ranges)
                 params[:iterations] = get(params, :iterations, size(problem.H_reduced, 2))
 
-                for noise_scale in params[:sigmas]
-                    σ = noise_scale / sqrt(2π)
+                for σ in params[:sigmas]
                     meta = experiment_metadata(
                         params,
                         σ,
@@ -317,11 +316,11 @@ code_names = [
         :search_radius => [1.0],
         :decoder => ["lsd"],
         :schedule => ["serial"],
-        :sigmas => [[0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6]],
+        :sigmas => [[0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6] ./ sqrt(2π)],
         :local_search => [true],
         :local_search_order => [[1, 1, 1, 1, 1, 1, 1, 1]],
         :local_search_lll => [false],
-        :sphere_decoding => [true],
+        :sphere_decoding => [true, false],
         :full_basis => [false],
     )
 

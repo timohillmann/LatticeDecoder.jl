@@ -72,3 +72,30 @@ examples_new/qldlc_generated_code_decode.ipynb
 
 The example loads a generated qLDLC code by name, prepares the decoding
 experiment, and runs a small smoke decode.
+
+## Bivariate bicycle code enlargement
+
+Open:
+
+```sh
+examples/bivariate_bicycle_enlarge.ipynb
+```
+
+The example loads every non-expanded `.npz` file in
+`generator_matrices/bivariate_bicycle`, enlarges `hx` and `hz` into full-rank
+lattice generators, and writes metadata-preserving files with `Mqq` and `Mpp`
+under `generator_matrices/bivariate_bicycle/expanded`. Weight balancing is
+enabled when loading the source matrices and can be toggled with the
+`balance_weights` variable.
+
+## Expanded bivariate bicycle CSS decoding
+
+Open:
+
+```sh
+examples/bivariate_bicycle_css_decode.ipynb
+```
+
+The example ensures expanded BB files exist, selects one CSS sector, runs
+belief propagation on a single Gaussian displacement, includes opt-in local
+search, and runs a tiny smoke sweep over the expanded BB codes.
