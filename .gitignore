@@ -8,4 +8,7 @@ Manifest.toml
 *.out
 data/*
 experiments/*
-generator_matrices/classical_ldlc/*
+generator_matrices/*
+*.sh
+*.sbatch
+*.pyc

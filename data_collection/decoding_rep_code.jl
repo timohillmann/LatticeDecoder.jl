@@ -1,4 +1,6 @@
 using Distributed
+using LinearAlgebra
+using LatticeDecoder
 
 include(joinpath(@__DIR__, "data_collection_utils.jl"))
 
@@ -82,7 +84,7 @@ end
         search_interval = search_radius,
     )
 
-    return @distributed (+) for _ in 1:n_samples
+    return data_collection_sample_sum(n_samples) do _
         error_vector = sample_error(σ, size(H, 2))
         received = copy(error_vector)
 
@@ -181,7 +183,7 @@ function main()
         :search_radius => [1.0],
         :decoder => ["lsd", "nearest"],
         :schedule => ["serial", "parallel"],
-        :n => [3, 5],
+        :n => [3, 5, 7, 9, 11, 13, 15],
         :sigmas => [collect(0.5:0.05:1.5) ./ sqrt(2π)],
         :balance_mode => ["unbalanced", "balance_first", "balance_last"],
         :local_search => [false, true],
@@ -190,7 +192,7 @@ function main()
         :full_basis => [false],
     )
 
-    n_samples = 10_000
+    n_samples = 100_000
     repeats = 1
 
     run_repetition_experiment!(
@@ -198,7 +200,7 @@ function main()
         param_ranges,
         n_samples,
         repeats,
-        max_errors = DEFAULT_MAX_ERRORS,
+        max_errors = 200,
     )
 end
 

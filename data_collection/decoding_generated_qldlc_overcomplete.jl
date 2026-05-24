@@ -23,6 +23,8 @@ function run_samples(;
     iterations::Int = size(H_reduced, 2),
     decoder::Union{String,Int64} = "lsd",
     search_radius::Float64 = 1.0,
+    lsd_beta::Float64 = LatticeDecoder.LSD_DEFAULT_BETA,
+    lsd_w_min::Float64 = LatticeDecoder.LSD_W_MIN,
     local_search::Bool = false,
     local_search_order::Vector{Int64} = [1],
     local_search_lll::Bool = false,
@@ -46,6 +48,8 @@ function run_samples(;
         sigma = σ,
         max_iterations = iterations,
         search_interval = search_radius,
+        lsd_beta = lsd_beta,
+        lsd_w_min = lsd_w_min,
     )
 
     return @distributed (+) for _ in 1:n_samples
@@ -99,6 +103,8 @@ function experiment_metadata(params::Dict, σ::Float64, nbits::Int, code_name::S
         :decoder => params[:decoder],
         :schedule => params[:schedule],
         :search_radius => params[:search_radius],
+        :lsd_beta => get(params, :lsd_beta, LatticeDecoder.LSD_DEFAULT_BETA),
+        :lsd_w_min => get(params, :lsd_w_min, LatticeDecoder.LSD_W_MIN),
         :iterations => params[:iterations],
         :sigma => σ,
         :nbits => nbits,
@@ -125,12 +131,13 @@ function run_qldlc_experiment!(
 )
     accumulated_errors = accumulated_errors_by_strong_id(path)
 
-    for _ in 1:repeats
+    for repeat_index in 1:repeats
         for code_name in code_names
             problem = qldlc_problem(code_name)
 
             for params in parameter_grid(param_ranges)
                 params[:iterations] = get(params, :iterations, size(problem.H_reduced, 2))
+
 
                 for σ in params[:sigmas]
                     meta = experiment_metadata(
@@ -156,6 +163,8 @@ function run_qldlc_experiment!(
                         iterations = params[:iterations],
                         decoder = params[:decoder],
                         search_radius = params[:search_radius],
+                        lsd_beta = get(params, :lsd_beta, LatticeDecoder.LSD_DEFAULT_BETA),
+                        lsd_w_min = get(params, :lsd_w_min, LatticeDecoder.LSD_W_MIN),
                         local_search = params[:local_search],
                         local_search_order = params[:local_search_order],
                         local_search_lll = params[:local_search_lll],
@@ -320,11 +329,11 @@ code_names = [
         :local_search => [true],
         :local_search_order => [[1, 1, 1, 1, 1, 1, 1, 1]],
         :local_search_lll => [false],
-        :sphere_decoding => [true, false],
+        :sphere_decoding => [false, true],
         :full_basis => [false],
     )
 
-    n_samples = 1000
+    n_samples = 10_000
     repeats = 10
 
     run_qldlc_experiment!(
@@ -333,8 +342,10 @@ code_names = [
         param_ranges,
         n_samples,
         repeats,
-        max_errors = DEFAULT_MAX_ERRORS,
+        max_errors = 200,
     )
 end
 
-main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

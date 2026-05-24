@@ -1,4 +1,6 @@
 using Distributed
+using LinearAlgebra
+using LatticeDecoder
 
 include(joinpath(@__DIR__, "data_collection_utils.jl"))
 
@@ -9,8 +11,8 @@ ensure_data_collection_workers!()
 
 const OUTPUT_PATH = "results/surface_code/surface_code_css_decoding.csv"
 
-function css_surface_code_problem(d::Int, basis::AbstractString)
-    code = GKP_Surface_Code(d, false)
+function css_surface_code_problem(d::Int, basis::AbstractString, balance_hamming_weight::Bool)
+    code = GKP_Surface_Code(d, balance_hamming_weight)
     M = code.code
     half = size(M, 1) ÷ 2
 
@@ -61,7 +63,7 @@ end
         search_interval = search_radius,
     )
 
-    return @distributed (+) for _ in 1:n_samples
+    return data_collection_sample_sum(n_samples) do _
         error_vector = sample_error(σ, size(H, 2))
         received = copy(error_vector)
 
@@ -89,7 +91,6 @@ function experiment_metadata(params::Dict, σ::Float64, nbits::Int)
     meta[:sigma] = σ
     meta[:nbits] = nbits
     meta[:css_decoding] = true
-    meta[:balance_hamming_weight] = false
     meta[:bit_flip] = false
 
     delete!(meta, :sigmas)
@@ -108,7 +109,11 @@ function run_surface_code_css_experiment!(
 
     for _ in 1:repeats
         for params in parameter_grid(param_ranges)
-            problem = css_surface_code_problem(params[:d], params[:basis])
+            problem = css_surface_code_problem(
+                params[:d],
+                params[:basis],
+                params[:balance_hamming_weight],
+            )
             H = problem.H
             G = problem.G
             logical_check = inv(H)
@@ -120,6 +125,10 @@ function run_surface_code_css_experiment!(
                 meta = experiment_metadata(params, σ, size(H, 2))
                 meta[:local_search_order] = local_search_order
                 strong_id = LatticeDecoder.get_strong_id_from_json(meta)
+
+
+                println("$params, σ = $σ")
+                flush(stdout)
 
                 if max_errors !== nothing && get(accumulated_errors, strong_id, 0) >= max_errors
                     continue
@@ -162,16 +171,17 @@ function main()
         :search_radius => [1.0],
         :decoder => ["lsd"],
         :schedule => ["serial", "parallel"],
-        :d => [3, 5],
+        :d => [3, 5, 7, 9],
         :sigmas => [collect(0.3:0.05:0.8) ./ sqrt(2π)],
         :basis => ["X"],
         :local_search => [false, true],
         :local_search_lll => [false],
         :sphere_decoding => [false, true],
+        :balance_hamming_weight => [false, true],
         :full_basis => [false],
     )
 
-    n_samples = 10_000
+    n_samples = 1_000
     repeats = 1
 
     run_surface_code_css_experiment!(
@@ -179,7 +189,7 @@ function main()
         param_ranges,
         n_samples,
         repeats,
-        max_errors = DEFAULT_MAX_ERRORS,
+        max_errors = 500,
     )
 end
 

@@ -1,4 +1,6 @@
 using Distributed
+using LinearAlgebra
+using LatticeDecoder
 
 include(joinpath(@__DIR__, "data_collection_utils.jl"))
 
@@ -85,7 +87,7 @@ end
 
 function local_search_order_for_code(code_name::AbstractString)
     distance = css_code_distance(code_name)
-    return [2; fill(1, distance - 1)]
+    return [2; fill(1, min(9, distance - 1))]
 end
 
 function canonical_code_name(path::AbstractString)
@@ -179,6 +181,8 @@ end
     iterations::Int = size(H, 2),
     decoder::Union{String,Int64} = "lsd",
     search_radius::Float64 = 1.0,
+    lsd_beta::Float64 = LatticeDecoder.LSD_DEFAULT_BETA,
+    lsd_w_min::Float64 = LatticeDecoder.LSD_W_MIN,
     local_search::Bool = false,
     local_search_order::Vector{Int64} = [0],
     local_search_lll::Bool = false,
@@ -202,9 +206,11 @@ end
         sigma = σ,
         max_iterations = iterations,
         search_interval = search_radius,
+        lsd_beta = lsd_beta,
+        lsd_w_min = lsd_w_min,
     )
 
-    return @distributed (+) for _ in 1:n_samples
+    return data_collection_sample_sum(n_samples) do _
         error_vector = sample_error(σ, size(H, 2))
         received = copy(error_vector)
 
@@ -248,13 +254,17 @@ function run_bivariate_bicycle_css_experiment!(
     param_ranges::Dict,
     n_samples::Int,
     repeats::Int,
-    max_errors::Union{Nothing,Int} = DEFAULT_MAX_ERRORS,
+    max_errors::Union{Nothing,Int} = 500,
 )
     accumulated_errors = accumulated_errors_by_strong_id(path)
 
     for _ in 1:repeats
         for code_name in code_names
+            println("Code: $code_name")
+            flush(stdout)
             for params in parameter_grid(param_ranges)
+                println("  Params: $params")
+                flush(stdout)
                 problem = bivariate_bicycle_css_problem(
                     code_name,
                     params[:basis];
@@ -265,16 +275,22 @@ function run_bivariate_bicycle_css_experiment!(
                 H = problem.H
                 G = problem.G
                 logical_check = problem.logical_check
-
+                println("Got problem with H size $(size(H)), G size $(size(G))")
+                flush(stdout)
                 params[:iterations] = get(params, :iterations, size(H, 2))
                 local_search_order = params[:local_search] ? local_search_order_for_code(problem.code_name) : [0]
-
+                println("  Local search order: $local_search_order")
+                flush(stdout)
                 for σ in params[:sigmas]
                     meta = experiment_metadata(params, σ, size(H, 2), problem.code_name, problem.code_family, problem.p, problem.distance)
                     meta[:local_search_order] = local_search_order
                     strong_id = LatticeDecoder.get_strong_id_from_json(meta)
 
-                    if max_errors !== nothing && get(accumulated_errors, strong_id, 0) >= max_errors
+                    println("  σ: $σ, params: $params, accumulated_errors: $(get(accumulated_errors, strong_id, 0))")
+                    flush(stdout)
+                    if get(accumulated_errors, strong_id, 0) >= max_errors
+                        println("  Skipping due to max errors reached. params: $params")
+                        flush(stdout)
                         continue
                     end
 
@@ -288,6 +304,8 @@ function run_bivariate_bicycle_css_experiment!(
                         iterations = params[:iterations],
                         decoder = params[:decoder],
                         search_radius = params[:search_radius],
+                        lsd_beta = get(params, :lsd_beta, LatticeDecoder.LSD_DEFAULT_BETA),
+                        lsd_w_min = get(params, :lsd_w_min, LatticeDecoder.LSD_W_MIN),
                         local_search = params[:local_search],
                         local_search_order,
                         local_search_lll = params[:local_search_lll],
@@ -322,22 +340,23 @@ function main()
         # "510_16_24_p2",
     ]
 
+
     param_ranges = Dict(
         :search_radius => [1.0],
         :decoder => ["lsd"],
-        :schedule => ["serial", "parallel"],
+        :schedule => ["serial"],
         :sigmas => [collect(0.3:0.05:0.8) ./ sqrt(2π)],
         :basis => ["X", "Z"],
-        :balance_weights => [false, true],
+        :balance_weights => [true, false],
         :reduced_basis => [true],
-        :local_search => [false, true],
+        :local_search => [true, false],
         :local_search_lll => [false],
-        :sphere_decoding => [false, true],
+        :sphere_decoding => [true, false],
         :full_basis => [false],
     )
 
-    n_samples = 1_000
-    repeats = 10
+    n_samples = 10_000
+    repeats = 1
 
     run_bivariate_bicycle_css_experiment!(
         OUTPUT_PATH;
@@ -345,8 +364,10 @@ function main()
         param_ranges,
         n_samples,
         repeats,
-        max_errors = DEFAULT_MAX_ERRORS,
+        max_errors = 200,
     )
 end
 
-main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
