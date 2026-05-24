@@ -74,6 +74,35 @@ function test_ldlc_decoder_api()
     @test w_min_decoder.lsd_w_min == 0.5
     @test w_min_decoder.tg.lsd_w_min == 0.5
 
+    memory_zero_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:serial, algorithm=:lsd, sigma=sigma, max_iterations=iterations, memory_strength=0.0)
+    @test run_decoder!(memory_zero_decoder, y) ≈ run_serial_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd")
+
+    damping_zero_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:parallel, algorithm=:nearest, sigma=sigma, max_iterations=iterations, damping_strength=0.0)
+    @test run_decoder!(damping_zero_decoder, y) ≈ run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "nearest")
+
+    for schedule in (:parallel, :serial)
+        memory_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:nearest, sigma=sigma, max_iterations=iterations, memory_strength=0.25)
+        memory_result = run_decoder!(memory_decoder, y)
+        @test memory_result === memory_decoder.tg.bp_result
+        @test all(isfinite, memory_result)
+        @test [msg.mean for msg in memory_decoder.channel_messages] ≈ y
+
+        vector_memory_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:lsd, sigma=sigma, max_iterations=iterations, memory_strength=fill(0.1, length(y)))
+        vector_memory_result = run_decoder!(vector_memory_decoder, y)
+        @test vector_memory_result === vector_memory_decoder.tg.bp_result
+        @test all(isfinite, vector_memory_result)
+
+        damping_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:nearest, sigma=sigma, max_iterations=iterations, damping_strength=0.35)
+        damping_result = run_decoder!(damping_decoder, y)
+        @test damping_result === damping_decoder.tg.bp_result
+        @test all(isfinite, damping_result)
+
+        vector_damping_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:lsd, sigma=sigma, max_iterations=iterations, damping_strength=fill(0.15, length(y)))
+        vector_damping_result = run_decoder!(vector_damping_decoder, y)
+        @test vector_damping_result === vector_damping_decoder.tg.bp_result
+        @test all(isfinite, vector_damping_result)
+    end
+
     decoder.sigma = 0.25
     decoder.max_iterations = 1
     @test run_decoder!(decoder, y) === decoder.tg.bp_result
@@ -86,6 +115,11 @@ function test_ldlc_decoder_api()
     @test parallel_result === decoder.tg.bp_result
     @test decoder.schedule == :parallel
 
+    memory_wrapper_result = run_decoder_serial!(decoder, y, sigma, iterations; memory_strength=0.2, damping_strength=0.3)
+    @test memory_wrapper_result === decoder.tg.bp_result
+    @test decoder.memory_strength == 0.2
+    @test decoder.damping_strength == 0.3
+
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); schedule=:layered)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); schedule=1)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:paper_lsd)
@@ -93,6 +127,12 @@ function test_ldlc_decoder_api()
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=0)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_beta=0.0)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_w_min=-0.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=-0.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=1.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=fill(0.1, length(y) - 1))
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); damping_strength=-0.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); damping_strength=1.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); damping_strength=fill(0.1, length(y) - 1))
     @test_throws ArgumentError run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_beta=0.0)
     @test_throws ArgumentError run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_w_min=-0.1)
 end
