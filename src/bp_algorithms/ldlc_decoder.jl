@@ -111,13 +111,13 @@ function _normalize_memory_strength(memory_strength::AbstractVector{<:Real}, nv:
 end
 
 function _validate_memory_strength(memory_strength::Float64, nv::Int64)
-    0.0 <= memory_strength <= 1.0 || throw(ArgumentError("memory_strength must be between 0 and 1."))
+    -1.0 <= memory_strength <= 1.0 || throw(ArgumentError("memory_strength must be between -1 and 1."))
     return nothing
 end
 
 function _validate_memory_strength(memory_strength::Vector{Float64}, nv::Int64)
     length(memory_strength) == nv || throw(ArgumentError("memory_strength vector must have one entry per variable node."))
-    all(γ -> 0.0 <= γ <= 1.0, memory_strength) || throw(ArgumentError("memory_strength entries must be between 0 and 1."))
+    all(γ -> -1.0 <= γ <= 1.0, memory_strength) || throw(ArgumentError("memory_strength entries must be between -1 and 1."))
     return nothing
 end
 

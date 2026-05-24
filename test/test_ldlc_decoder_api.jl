@@ -92,6 +92,16 @@ function test_ldlc_decoder_api()
         @test vector_memory_result === vector_memory_decoder.tg.bp_result
         @test all(isfinite, vector_memory_result)
 
+        negative_memory_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:nearest, sigma=sigma, max_iterations=iterations, memory_strength=-0.25)
+        negative_memory_result = run_decoder!(negative_memory_decoder, y)
+        @test negative_memory_result === negative_memory_decoder.tg.bp_result
+        @test all(isfinite, negative_memory_result)
+
+        negative_vector_memory_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:lsd, sigma=sigma, max_iterations=iterations, memory_strength=fill(-0.1, length(y)))
+        negative_vector_memory_result = run_decoder!(negative_vector_memory_decoder, y)
+        @test negative_vector_memory_result === negative_vector_memory_decoder.tg.bp_result
+        @test all(isfinite, negative_vector_memory_result)
+
         damping_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:nearest, sigma=sigma, max_iterations=iterations, damping_strength=0.35)
         damping_result = run_decoder!(damping_decoder, y)
         @test damping_result === damping_decoder.tg.bp_result
@@ -115,9 +125,9 @@ function test_ldlc_decoder_api()
     @test parallel_result === decoder.tg.bp_result
     @test decoder.schedule == :parallel
 
-    memory_wrapper_result = run_decoder_serial!(decoder, y, sigma, iterations; memory_strength=0.2, damping_strength=0.3)
+    memory_wrapper_result = run_decoder_serial!(decoder, y, sigma, iterations; memory_strength=-0.2, damping_strength=0.3)
     @test memory_wrapper_result === decoder.tg.bp_result
-    @test decoder.memory_strength == 0.2
+    @test decoder.memory_strength == -0.2
     @test decoder.damping_strength == 0.3
 
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); schedule=:layered)
@@ -127,7 +137,7 @@ function test_ldlc_decoder_api()
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=0)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_beta=0.0)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_w_min=-0.1)
-    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=-0.1)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=-1.1)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=1.1)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); memory_strength=fill(0.1, length(y) - 1))
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); damping_strength=-0.1)
