@@ -64,6 +64,16 @@ function test_ldlc_decoder_api()
     @test beta_decoder.lsd_beta == 2.0
     @test beta_decoder.tg.lsd_beta == 2.0
 
+    default_w_min_decoder = LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, sigma=sigma, max_iterations=iterations)
+    explicit_w_min_decoder = LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, sigma=sigma, max_iterations=iterations, lsd_w_min=LatticeDecoder.LSD_W_MIN)
+    @test run_decoder!(explicit_w_min_decoder, y) ≈ run_decoder!(default_w_min_decoder, y)
+
+    w_min_decoder = LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, sigma=sigma, max_iterations=iterations, lsd_beta=2.0, lsd_w_min=0.5)
+    w_min_reference = copy(run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_beta=2.0, lsd_w_min=0.5))
+    @test run_decoder!(w_min_decoder, y) ≈ w_min_reference
+    @test w_min_decoder.lsd_w_min == 0.5
+    @test w_min_decoder.tg.lsd_w_min == 0.5
+
     decoder.sigma = 0.25
     decoder.max_iterations = 1
     @test run_decoder!(decoder, y) === decoder.tg.bp_result
@@ -82,7 +92,9 @@ function test_ldlc_decoder_api()
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=2.5)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=0)
     @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_beta=0.0)
+    @test_throws ArgumentError LDLCDecoder(initialize_tanner_graph(H); algorithm=:lsd, lsd_w_min=-0.1)
     @test_throws ArgumentError run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_beta=0.0)
+    @test_throws ArgumentError run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd"; lsd_w_min=-0.1)
 end
 
 function test_ldlc_decoder_api_classical_ldlc_sizes()

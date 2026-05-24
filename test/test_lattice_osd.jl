@@ -128,12 +128,51 @@ function test_local_search_constructor_api()
     positional = LocalSearch(2, G, order, false, false, false)
     keyword = LocalSearch(2, G, order; search="restricted")
     full_enumeration = LocalSearch(2, G, order; search=:full_enumeration)
+    sphere = LocalSearch(2, G, order; sphere_decoding=true)
 
     @test positional.search == :restricted
     @test keyword.search == :restricted
     @test full_enumeration.search == :full_enumeration
     @test length(positional.candidates[1]) == 2
     @test length(full_enumeration.candidates[1]) == size(G, 2)
+    @test isempty(sphere.candidates)
+    @test isempty(sphere.candidate_supports)
     @test_throws ArgumentError LocalSearch(2, G, order; search=:full_enumeration, sphere_decoding=true)
     @test_throws ArgumentError LocalSearch(2, G, order; search=:unknown)
+end
+
+function test_local_search_streaming_matches_materialized()
+    G = [
+        1.0 0.2 0.0
+        0.0 1.0 0.3
+        0.1 0.0 1.0
+    ]
+    y = G * [2, -1, 1] + [0.03, -0.02, 0.01]
+    λ = [0.5, 0.4, 0.3]
+    order = [2, 1, 1]
+
+    materialized_dec = zeros(Int64, 3)
+    materialized = LocalSearch(length(order), G, order)
+    local_search!(y, λ, materialized_dec, materialized)
+
+    streaming_dec = zeros(Int64, 3)
+    streaming = LocalSearch(length(order), G, order; max_materialized_candidates=0)
+    local_search!(y, λ, streaming_dec, streaming)
+
+    @test !isempty(materialized.candidates)
+    @test isempty(streaming.candidates)
+    @test streaming_dec == materialized_dec
+end
+
+function test_local_search_large_orders_are_lazy()
+    G = Matrix{Float64}(I, 12, 12)
+    order = fill(1, 12)
+
+    lazy = LocalSearch(length(order), G, order)
+    sphere = LocalSearch(length(order), G, order; sphere_decoding=true)
+
+    @test isempty(lazy.candidates)
+    @test isempty(lazy.candidate_supports)
+    @test isempty(sphere.candidates)
+    @test isempty(sphere.candidate_supports)
 end

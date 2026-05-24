@@ -11,6 +11,7 @@ const DEFAULT_SPARSE_CODE_MAX_ITERS = 500_000
 const MIN_VAR::Float64 = 1e-10
 
 # Local search
+const DEFAULT_MAX_MATERIALIZED_LOCAL_SEARCH_CANDIDATES = 10_000
 const SPHERE_DECODER_PRUNE_ATOL = 1e-15
 const SPHERE_DECODER_OFFSET_CAP = 1000
 
@@ -36,5 +37,10 @@ const HEADER = RESULTS_CSV_HEADER
 
 function _validate_lsd_beta(lsd_beta::Float64)
     lsd_beta > 0 || throw(ArgumentError("LSD beta must be positive."))
+    return nothing
+end
+
+function _validate_lsd_w_min(lsd_w_min::Float64)
+    lsd_w_min >= 0 || throw(ArgumentError("LSD w_min must be nonnegative."))
     return nothing
 end

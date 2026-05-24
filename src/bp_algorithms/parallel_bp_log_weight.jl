@@ -433,8 +433,9 @@ Run the belief propagation algorithm on a Tanner graph to decode a low-density p
 # Returns
 - `bp_result`: The decoded codeword obtained from the belief propagation algorithm.
 """
-function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5, lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::Float64, max_iter::Int64, decoder::Union{String, Int64}="lsd"; search_interval::Float64=1.5, lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA, lsd_w_min::Float64=LatticeDecoder.LSD_W_MIN)
     _validate_lsd_beta(lsd_beta)
+    _validate_lsd_w_min(lsd_w_min)
 
     if decoder == "nearest"
         variable_node_iterations! = variable_node_iterations_nearest!
@@ -460,6 +461,7 @@ function run_belief_propagation!(tg::TannerGraph, message::Vector{Float64}, σ::
     # set the search interval
     tg.search_interval = search_interval
     tg.lsd_beta = lsd_beta
+    tg.lsd_w_min = lsd_w_min
     # println("initialize variable messages")
     # initilization
     initialize_messages!(tg, message, σ)
@@ -504,7 +506,7 @@ function variable_node_decision_simulated_lsd(tg::TannerGraph, vn_idx::Int64)
     # println("LSD Variable Node Decision")
     vn = tg.var_nodes[vn_idx]
     msg_vector = _collect_msg_vector(vn)
-    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta)
+    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta, w_min=tg.lsd_w_min)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
     # message = copy(vn.message)
@@ -515,8 +517,9 @@ end
 
 
 
-function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5, lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::Vector{Float64}, σ::Vector{Float64}, max_iter::Int64, decoder::String="lsd"; search_interval::Float64=1.5, lsd_beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA, lsd_w_min::Float64=LatticeDecoder.LSD_W_MIN)
     _validate_lsd_beta(lsd_beta)
+    _validate_lsd_w_min(lsd_w_min)
 
     if decoder == "nearest"
         variable_node_iterations! = variable_node_iterations_nearest!
@@ -533,6 +536,7 @@ function run_belief_propagation_trace!(tg::LatticeDecoder.TannerGraph, message::
     end
 
     tg.lsd_beta = lsd_beta
+    tg.lsd_w_min = lsd_w_min
 
 
 

@@ -27,12 +27,15 @@ function LocalSearch(
     sphere_decoding::Bool=false,
     full_basis::Bool=false,
     search=:restricted,
+    max_materialized_candidates::Integer=LatticeDecoder.DEFAULT_MAX_MATERIALIZED_LOCAL_SEARCH_CANDIDATES,
 )
     search_mode = _normalize_local_search_mode(search)
     _validate_local_search_config(search_mode, sphere_decoding)
 
-    candidate_length = search_mode == :full_enumeration ? size(G, 2) : w
-    candidates = full_basis && search_mode == :restricted ? Vector{Vector{Int64}}() : generate_candidates(candidate_length, order)
+    candidate_length = search_mode == :full_enumeration || full_basis ? size(G, 2) : w
+    candidate_count = count_candidates(candidate_length, order)
+    materialize_candidates = !sphere_decoding && candidate_count <= max_materialized_candidates
+    candidates = materialize_candidates ? generate_candidates(candidate_length, order) : Vector{Vector{Int64}}()
     candidate_supports = [findall(!iszero, candidate) for candidate in candidates]
 
     return LocalSearch(w, G, lll_reduction, order, candidates, candidate_supports, sphere_decoding, full_basis, search_mode)
@@ -65,9 +68,19 @@ function generate_value_sets(rs::Vector{Int64}, i::Int64)
         return Iterators.product(fill(rs, (1, i))...)
 end
 
+function count_candidates(n::Int64, order::Vector{Int64})
+    total = big(0)
+    for i in eachindex(order)
+        r = order[i]
+        if r > 0
+            total += big(2 * r)^i * binomial(big(n), i)
+        end
+    end
 
-function generate_candidates(n::Int64, order::Vector{Int64})
-    vecs = Vector{Vector{Int64}}()
+    return total
+end
+
+function foreach_candidate(f::Function, n::Int64, order::Vector{Int64})
     _vec = zeros(Int64, n)
     for i in eachindex(order)
         r = order[i]
@@ -80,9 +93,18 @@ function generate_candidates(n::Int64, order::Vector{Int64})
                 # printstyled("idx: $idx\n", color=:green)
                 _vec .= 0
                 _vec[idx] .= r
-                push!(vecs, copy(_vec))
+                f(_vec, idx)
             end
         end
+    end
+
+    return nothing
+end
+
+function generate_candidates(n::Int64, order::Vector{Int64})
+    vecs = Vector{Vector{Int64}}()
+    foreach_candidate(n, order) do candidate, _support
+        push!(vecs, copy(candidate))
     end
 
     return vecs
@@ -144,10 +166,10 @@ function _full_enumeration_search!(y::Vector{Float64}, dec::Vector{Int64}, lsd::
 
     if lsd.lll_reduction
         B, T, _Q, _R = lll_reduce(Matrix(lsd.G))
-        u = _full_basis_candidate_cvp(B, r, lsd.candidates, lsd.candidate_supports)
+        u = candidate_cvp(B, r, lsd)
         dec .+= round.(Int64, T * u)
     else
-        u = _full_basis_candidate_cvp(lsd.G, r, lsd.candidates, lsd.candidate_supports)
+        u = candidate_cvp(lsd.G, r, lsd)
         dec .+= u
     end
 
@@ -155,10 +177,30 @@ function _full_enumeration_search!(y::Vector{Float64}, dec::Vector{Int64}, lsd::
 end
 
 function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSearch)
+    return candidate_cvp(A, r, lsd)
+end
+
+function candidate_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSearch)
+    if isempty(lsd.candidates)
+        return streaming_candidate_cvp(A, r, lsd.order)
+    end
+
+    return materialized_candidate_cvp(A, r, lsd.candidates, lsd.candidate_supports)
+end
+
+function materialized_candidate_cvp(
+    A::AbstractMatrix{Float64},
+    r::Vector{Float64},
+    candidates::Vector{Vector{Int64}},
+    candidate_supports::Vector{Vector{Int64}},
+)
     best_u = zeros(Int64, size(A, 2))
     best_dist = sum(abs2, r)
-    for candidate in lsd.candidates
-        dist = sum(abs2, r - A * (candidate))
+    residual = copy(r)
+    for (candidate, support) in zip(candidates, candidate_supports)
+        residual .= r
+        _subtract_candidate!(residual, A, candidate, support)
+        dist = sum(abs2, residual)
         if dist < best_dist
             best_dist = dist
             best_u .= candidate
@@ -166,7 +208,25 @@ function local_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, lsd::LocalSea
         end
     end
     return best_u
-end 
+end
+
+function streaming_candidate_cvp(A::AbstractMatrix{Float64}, r::Vector{Float64}, order::Vector{Int64})
+    best_u = zeros(Int64, size(A, 2))
+    best_dist = sum(abs2, r)
+    residual = copy(r)
+
+    foreach_candidate(size(A, 2), order) do candidate, support
+        residual .= r
+        _subtract_candidate!(residual, A, candidate, support)
+        dist = sum(abs2, residual)
+        if dist < best_dist
+            best_dist = dist
+            best_u .= candidate
+        end
+    end
+
+    return best_u
+end
 
 function _full_basis_candidate_cvp(
     A::AbstractMatrix{Float64},

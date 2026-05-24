@@ -14,7 +14,7 @@ function lsd_variable_node_messages_reference!(tg::TannerGraph, vn_idx::Int64)
         cn_idx, _ = vn.neighbours[j]
         idx = vn.pos_in_check_neighbour[j]
         cn = tg.check_nodes[cn_idx]
-        _lsd_variable_node_message!(cn.messages[idx], vn, j; beta=tg.lsd_beta)
+        _lsd_variable_node_message!(cn.messages[idx], vn, j; beta=tg.lsd_beta, w_min=tg.lsd_w_min)
     end
 end
 
@@ -24,7 +24,7 @@ end
 
 Updates the message of a variable node `vn` for a specific neighbour `nb_idx` using the List Sphere Decoding algorithm.
 """
-function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int; beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::VariableNode, nb_idx::Int; beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA, w_min::Float64=LatticeDecoder.LSD_W_MIN)
     
 
 
@@ -35,7 +35,7 @@ function _lsd_variable_node_message!(cn_message::gaussian_log_weight, vn::Variab
         cn_message.period = msg_vector[1].period
         return 1
     end
-    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=beta)
+    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=beta, w_min=w_min)
     L, D = simplified_lsd(lsd_inputs)
     if length(D) == 0
         # print("Nothing found.")
@@ -67,7 +67,7 @@ function _lsd_variable_node_decision_reference!(bp_result::Vector{Float64}, tg::
         end
     end
 
-    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta)
+    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta, w_min=tg.lsd_w_min)
     L, D = simplified_lsd(lsd_inputs)
     candidate_gaussians = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)
     if length(D) == 0
@@ -131,8 +131,9 @@ The input consists of the following vectors:
 - `β::Float64`: The β parameter, the search radius.
 - `u_d::Float64`: The u_d parameter, u_d = sqrt(Var) * mean[d] / var[d]. Wang & Mow: after Eq. (51)
 """
-function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight}; beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA)
+function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight}; beta::Float64=LatticeDecoder.LSD_DEFAULT_BETA, w_min::Float64=LatticeDecoder.LSD_W_MIN)
     beta > 0 || throw(ArgumentError("LSD beta must be positive."))
+    w_min >= 0 || throw(ArgumentError("LSD w_min must be nonnegative."))
 
     # Init storage vectors
     t_vector = zeros(Float64, length(msg_vector))
@@ -151,7 +152,7 @@ function ListSphereDecodingInput(msg_vector::Vector{gaussian_log_weight}; beta::
         g_vector[i] = sqrt(msg.var * msg.period^2)
         p_vector[i] = msg.mean * msg.period
         # print("Var & Period ", msg.var, " ", msg.period, " ")
-        β = abs(msg.period) < LatticeDecoder.W_MIN ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
+        β = abs(msg.period) < w_min ? max(β, 1 / sqrt(msg.var * msg.period^2)) : β  # Wang & Mow: Eq. (44)
         # β = max(β, 1 / sqrt(msg.var * msg.period^2))
     end
     # overwrite the last element of p_vector with the mean of the last message
@@ -213,7 +214,7 @@ function _lsd_variable_node_decision_reference!(tg::TannerGraph, vn_idx::Int64)
         end
     end
 
-    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta)
+    lsd_inputs = ListSphereDecodingInput(msg_vector; beta=tg.lsd_beta, w_min=tg.lsd_w_min)
 
     L, D = simplified_lsd(lsd_inputs)
     can_gaussian = _calculate_candidate_gaussians(lsd_inputs, L, D, msg_vector)

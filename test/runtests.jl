@@ -43,6 +43,8 @@ end
     test_local_search_full_enumeration_searches_all_columns()
     test_local_search_full_enumeration_never_worsens()
     test_local_search_constructor_api()
+    test_local_search_streaming_matches_materialized()
+    test_local_search_large_orders_are_lazy()
 end
 
 
