@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=bb-css
+#SBATCH --job-name=css-codes
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --exclusive
