@@ -183,6 +183,7 @@ end
     search_radius::Float64 = 1.0,
     lsd_beta::Float64 = LatticeDecoder.LSD_DEFAULT_BETA,
     lsd_w_min::Float64 = LatticeDecoder.LSD_W_MIN,
+    memory_strength::Float64 = 0.0,
     local_search::Bool = false,
     local_search_order::Vector{Int64} = [0],
     local_search_lll::Bool = false,
@@ -208,6 +209,7 @@ end
         search_interval = search_radius,
         lsd_beta = lsd_beta,
         lsd_w_min = lsd_w_min,
+        memory_strength = memory_strength,
     )
 
     return data_collection_sample_sum(n_samples) do _
@@ -306,6 +308,7 @@ function run_bivariate_bicycle_css_experiment!(
                         search_radius = params[:search_radius],
                         lsd_beta = get(params, :lsd_beta, LatticeDecoder.LSD_DEFAULT_BETA),
                         lsd_w_min = get(params, :lsd_w_min, LatticeDecoder.LSD_W_MIN),
+                        memory_strength = get(params, :memory_strength, 0.0),
                         local_search = params[:local_search],
                         local_search_order,
                         local_search_lll = params[:local_search_lll],
