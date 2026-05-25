@@ -25,13 +25,13 @@ function memory_sweep_max_errors(default::Int = 200)
     return value === nothing ? default : value
 end
 
-memory_sweep_strengths(default::Vector{Float64} = collect(-1.0:0.1:1.0)) =
+memory_sweep_strengths(default::Vector{Float64} = collect(-0.3:0.15:0.3)) =
     _float_list_env("MEMORY_SWEEP_STRENGTHS", default)
 
-memory_sweep_betas(default::Vector{Float64} = collect(1.5:0.1:6.0)) =
+memory_sweep_betas(default::Vector{Float64} = collect(1.6:0.2:6.0)) =
     _float_list_env("MEMORY_SWEEP_BETAS", default)
 
-memory_sweep_w_mins(default::Vector{Float64} = collect(0.6:0.05:1.15)) =
+memory_sweep_w_mins(default::Vector{Float64} = collect(0.7:0.1:1.2)) =
     _float_list_env("MEMORY_SWEEP_W_MINS", default)
 
 memory_sweep_code_names(default::Vector{String}) =
