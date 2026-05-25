@@ -77,6 +77,12 @@ function test_ldlc_decoder_api()
     memory_zero_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:serial, algorithm=:lsd, sigma=sigma, max_iterations=iterations, memory_strength=0.0)
     @test run_decoder!(memory_zero_decoder, y) ≈ run_serial_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd")
 
+    serial_vertical_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:serial_vertical, algorithm=:lsd, sigma=sigma, max_iterations=iterations)
+    @test run_decoder!(serial_vertical_decoder, y) ≈ run_serial_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "lsd")
+
+    serial_horizontal_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:serial_horizontal, algorithm=:lsd, sigma=sigma, max_iterations=iterations, memory_strength=-0.1, damping_strength=0.2)
+    @test all(isfinite, run_decoder!(serial_horizontal_decoder, y))
+
     damping_zero_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:parallel, algorithm=:nearest, sigma=sigma, max_iterations=iterations, damping_strength=0.0)
     @test run_decoder!(damping_zero_decoder, y) ≈ run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "nearest")
 

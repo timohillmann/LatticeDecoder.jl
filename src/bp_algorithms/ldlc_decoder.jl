@@ -91,7 +91,7 @@ function _normalize_decoder_algorithm(algorithm, M)
 end
 
 function _validate_decoder_config(schedule::Symbol, algorithm::Union{Symbol,Int64})
-    schedule in (:parallel, :serial) || throw(ArgumentError("Unsupported schedule $(schedule). Choose :parallel or :serial."))
+    schedule in (:parallel, :serial, :serial_vertical, :serial_horizontal) || throw(ArgumentError("Unsupported schedule $(schedule). Choose :parallel, :serial, :serial_vertical, or :serial_horizontal."))
     if algorithm isa Symbol
         algorithm in (:nearest, :lsd) || throw(ArgumentError("Unsupported algorithm $(algorithm). Choose :nearest, :lsd, or an integer M."))
     else
@@ -101,7 +101,7 @@ function _validate_decoder_config(schedule::Symbol, algorithm::Union{Symbol,Int6
 end
 
 function _validate_decoder_config(schedule, algorithm)
-    throw(ArgumentError("Unsupported decoder configuration. Choose schedule :parallel or :serial and algorithm :nearest, :lsd, or an integer M."))
+    throw(ArgumentError("Unsupported decoder configuration. Choose schedule :parallel, :serial, :serial_vertical, or :serial_horizontal and algorithm :nearest, :lsd, or an integer M."))
 end
 
 function _normalize_memory_strength(memory_strength::Real, nv::Int64)
@@ -176,8 +176,10 @@ function run_decoder!(dec::LDLCDecoder, message::Vector{Float64})
 
     if dec.schedule == :parallel
         _run_parallel_decoder!(dec)
+    elseif dec.schedule == :serial_horizontal
+        _run_serial_horizontal_decoder!(dec)
     else
-        _run_serial_decoder!(dec)
+        _run_serial_vertical_decoder!(dec)
     end
 
     _decision_step!(dec)
@@ -193,11 +195,24 @@ function _run_parallel_decoder!(dec::LDLCDecoder)
     return nothing
 end
 
-function _run_serial_decoder!(dec::LDLCDecoder)
+function _run_serial_vertical_decoder!(dec::LDLCDecoder)
     @inbounds for _ = 1:dec.max_iterations
         update_reliability_schedule!(dec.tg)
         for vn_idx in dec.tg.schedule
             _update_serial_variable_node!(dec, vn_idx)
+        end
+    end
+    return nothing
+end
+
+function _run_serial_horizontal_decoder!(dec::LDLCDecoder)
+    @inbounds for _ = 1:dec.max_iterations
+        for cn_idx = 1:dec.tg.nc
+            check_node_messages!(dec.tg, cn_idx)
+            for (vn_idx, _) in dec.tg.check_nodes[cn_idx].neighbours
+                _memory_update_variable!(dec, vn_idx)
+                _variable_node_messages!(dec, vn_idx)
+            end
         end
     end
     return nothing
