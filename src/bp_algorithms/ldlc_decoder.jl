@@ -30,6 +30,7 @@ mutable struct LDLCDecoder
     damping_strength::Union{Float64,Vector{Float64}}
     channel_messages::Vector{gaussian_log_weight}
     damping_messages::Vector{gaussian_log_weight}
+    posterior_message::gaussian_log_weight
     m_gaussian_allocs::Dict{Int,FBAlloc}
 end
 
@@ -58,8 +59,9 @@ function LDLCDecoder(
     channel_messages = [gaussian_log_weight(0.0, 1.0) for _ in 1:tg.nv]
     max_degree = maximum(length(vn.neighbours) for vn in tg.var_nodes; init=0)
     damping_messages = [gaussian_log_weight(0.0, 1.0) for _ in 1:max_degree]
+    posterior_message = gaussian_log_weight(0.0, 1.0)
     allocs = decoder_algorithm isa Int64 ? _m_gaussian_allocs(tg, decoder_algorithm) : Dict{Int,FBAlloc}()
-    return LDLCDecoder(tg, decoder_schedule, decoder_algorithm, sigma, max_iterations, search_interval, lsd_beta, lsd_w_min, decoder_memory_strength, decoder_damping_strength, channel_messages, damping_messages, allocs)
+    return LDLCDecoder(tg, decoder_schedule, decoder_algorithm, sigma, max_iterations, search_interval, lsd_beta, lsd_w_min, decoder_memory_strength, decoder_damping_strength, channel_messages, damping_messages, posterior_message, allocs)
 end
 
 LDLCDecoder(tg::TannerGraph, M::Int) = LDLCDecoder(tg; schedule=:parallel, algorithm=Int64(M))
@@ -279,7 +281,8 @@ function _variable_node_posterior(dec::LDLCDecoder, vn_idx::Int64)
     if dec.algorithm == :nearest
         return variable_node_decision_simulated_nearest(dec.tg, vn_idx)
     elseif dec.algorithm == :lsd
-        return variable_node_decision_simulated_lsd(dec.tg, vn_idx)
+        lsd_variable_node_posterior_optimized!(dec.posterior_message, dec.tg, vn_idx)
+        return dec.posterior_message
     else
         return _variable_node_posterior_M_gaussian(dec, vn_idx)
     end

@@ -361,3 +361,42 @@ end
 
 lsd_variable_node_decision_optimized!(tg::LD.TannerGraph, vn_idx::Int64) =
     lsd_variable_node_decision_optimized!(tg.bp_result, tg, vn_idx)
+
+"""
+    lsd_variable_node_posterior_optimized!(out, tg, vn_idx)
+
+Compute an LSD variable-node posterior into `out` without changing the
+variable-node bias stored in `vn.message`.
+"""
+function lsd_variable_node_posterior_optimized!(out::LD.gaussian_log_weight, tg::LD.TannerGraph, vn_idx::Int64)
+    vn = tg.var_nodes[vn_idx]
+    n = length(vn.messages) + 1
+    allocs = get_lsd_allocations(n)
+
+    out.mean = vn.message.mean
+    out.var = vn.message.var
+    out.log_weight = vn.message.log_weight
+    out.period = vn.message.period
+
+    if n == 2
+        @inbounds begin
+            msg1 = vn.messages[1]
+            if isapprox(msg1.var, LatticeDecoder.MIN_VAR)
+                out.mean = msg1.mean
+                out.var = msg1.var
+                return 1
+            end
+            if isapprox(vn.message.var, LatticeDecoder.MIN_VAR)
+                return 1
+            end
+        end
+    end
+
+    n, var, beta, beta1, u_d = build_lsd_input_all!(allocs, vn, tg.lsd_beta, tg.lsd_w_min)
+    count = simplified_lsd_candidates!(allocs, n, var, beta, beta1, u_d)
+    if count > 0
+        moment_match_candidates!(out, allocs, count, var)
+    end
+
+    return count
+end

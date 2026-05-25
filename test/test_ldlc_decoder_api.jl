@@ -80,6 +80,14 @@ function test_ldlc_decoder_api()
     damping_zero_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=:parallel, algorithm=:nearest, sigma=sigma, max_iterations=iterations, damping_strength=0.0)
     @test run_decoder!(damping_zero_decoder, y) ≈ run_belief_propagation!(initialize_tanner_graph(H), y, sigma, iterations, "nearest")
 
+    lsd_posterior_tg = initialize_tanner_graph(H)
+    LatticeDecoder.initialize_messages!(lsd_posterior_tg, y, sigma)
+    LatticeDecoder.check_node_iterations!(lsd_posterior_tg)
+    lsd_posterior_reference = LatticeDecoder.variable_node_decision_simulated_lsd(lsd_posterior_tg, 1)
+    lsd_posterior_optimized = LatticeDecoder.gaussian_log_weight(0.0, 1.0)
+    @test LatticeDecoder.lsd_variable_node_posterior_optimized!(lsd_posterior_optimized, lsd_posterior_tg, 1) > 0
+    @test lsd_posterior_optimized ≈ lsd_posterior_reference
+
     for schedule in (:parallel, :serial)
         memory_decoder = LDLCDecoder(initialize_tanner_graph(H); schedule=schedule, algorithm=:nearest, sigma=sigma, max_iterations=iterations, memory_strength=0.25)
         memory_result = run_decoder!(memory_decoder, y)
