@@ -47,7 +47,7 @@ function bivariate_bicycle_memory_sweep_param_ranges()
     return Dict(
         :search_radius => [1.0],
         :decoder => ["lsd"],
-        :schedule => ["serial"],
+        :schedule => ["serial_vertical", "serial_horizontal"],
         :lsd_beta => memory_sweep_betas(),
         :lsd_w_min => memory_sweep_w_mins(),
         :memory_strength => memory_sweep_strengths(),
@@ -72,6 +72,7 @@ function main()
         println("Bivariate bicycle memory sweep dry run")
         println("  output: $path")
         println("  codes: $(code_names)")
+        println("  schedules: $(param_ranges[:schedule])")
         println("  memory strengths: $(param_ranges[:memory_strength])")
         println("  LSD betas: $(param_ranges[:lsd_beta])")
         println("  LSD w_mins: $(param_ranges[:lsd_w_min])")
