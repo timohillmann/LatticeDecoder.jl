@@ -28,6 +28,12 @@ end
 memory_sweep_strengths(default::Vector{Float64} = collect(-1.0:0.1:1.0)) =
     _float_list_env("MEMORY_SWEEP_STRENGTHS", default)
 
+memory_sweep_betas(default::Vector{Float64} = collect(1.5:0.1:6.0)) =
+    _float_list_env("MEMORY_SWEEP_BETAS", default)
+
+memory_sweep_w_mins(default::Vector{Float64} = collect(0.6:0.05:1.15)) =
+    _float_list_env("MEMORY_SWEEP_W_MINS", default)
+
 memory_sweep_code_names(default::Vector{String}) =
     _string_list_env("MEMORY_SWEEP_CODE_NAMES", default)
 
@@ -42,8 +48,8 @@ function bivariate_bicycle_memory_sweep_param_ranges()
         :search_radius => [1.0],
         :decoder => ["lsd"],
         :schedule => ["serial"],
-        :lsd_beta => [LatticeDecoder.LSD_DEFAULT_BETA],
-        :lsd_w_min => [LatticeDecoder.LSD_W_MIN],
+        :lsd_beta => memory_sweep_betas(),
+        :lsd_w_min => memory_sweep_w_mins(),
         :memory_strength => memory_sweep_strengths(),
         :sigmas => [collect(0.2:0.05:0.5) ./ sqrt(2π)],
         :basis => ["X"],
@@ -67,6 +73,8 @@ function main()
         println("  output: $path")
         println("  codes: $(code_names)")
         println("  memory strengths: $(param_ranges[:memory_strength])")
+        println("  LSD betas: $(param_ranges[:lsd_beta])")
+        println("  LSD w_mins: $(param_ranges[:lsd_w_min])")
         println("  grid points before sigma expansion: $(length(parameter_grid(param_ranges)))")
         return nothing
     end
