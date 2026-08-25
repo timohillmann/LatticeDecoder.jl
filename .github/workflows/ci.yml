@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, public-release]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Julia ${{ matrix.julia-version }} / Ubuntu
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version: ['1.11', '1.12']
+
+    steps:
+      - name: Check out the public history
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+
+      - name: Cache Julia artifacts
+        uses: julia-actions/cache@v2
+
+      - name: Instantiate and precompile the committed environment
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+
+      - name: Run decoder regression, release audit, and six notebook smoke tests
+        env:
+          LATTICEDECODER_EXAMPLE_SAMPLES: '1'
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
+
+      - name: Run LSD implementation-equivalence check
+        run: julia --project=. test/perf/test_lsd_overlay_equivalence.jl
+
+  macos-smoke:
+    name: Julia 1.12 / macOS smoke
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the public history
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+
+      - name: Cache Julia artifacts
+        uses: julia-actions/cache@v2
+
+      - name: Instantiate, precompile, and load the package
+        run: >-
+          julia --project=. -e
+          'using Pkg; Pkg.instantiate(); Pkg.precompile(); using LatticeDecoder'

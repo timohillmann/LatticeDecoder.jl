@@ -1,0 +1,25 @@
+*.DS_Store
+*.out
+*.csv
+*.tsv
+*.jsonl
+*.offset
+*.pyc
+*.sbatch
+*.sh
+
+/.CondaPkg/
+/.venv/
+/.vscode/
+/data/
+/data_collection/
+/data_plotting/
+/experiments/
+/generator_matrices/
+/logs/
+/research/
+/results/
+/scratch/
+/slurm/
+
+# The paper release intentionally commits its root Manifest.toml.

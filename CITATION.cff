@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite this release. Citation details for the
+  accompanying paper will be added when its title and persistent identifier
+  are finalized.
+title: LatticeDecoder.jl
+type: software
+version: 0.1.0
+authors:
+  - given-names: Timo
+    family-names: Hillmann
+  - given-names: Francesco
+    family-names: Arzani
+repository-code: https://github.com/timohillmann/LatticeDecoder.jl
+license: MIT
+keywords:
+  - lattice decoding
+  - belief propagation
+  - LDLC
+  - GKP codes
+preferred-citation:
+  type: article
+  title: "Forthcoming paper: title pending"
+  authors:
+    - given-names: Timo
+      family-names: Hillmann
+    - given-names: Francesco
+      family-names: Arzani
+  year: 2026
