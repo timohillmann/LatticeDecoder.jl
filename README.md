@@ -107,8 +107,29 @@ fixture checksums.
 
 ## Citation
 
-Please cite the software metadata in [`CITATION.cff`](CITATION.cff). The paper
-title and DOI are marked as forthcoming and will be updated when assigned.
+Please cite the software metadata in [`CITATION.cff`](CITATION.cff). 
+If you use this package in your research, please cite:
+
+> Timo Hillmann, Jens Eisert, and Francesco Arzani.  
+> **Quantum low-density lattice codes.**  
+> arXiv:2609.03021 (2026).  
+> https://doi.org/10.48550/arXiv.2609.03021
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@misc{hillmann_quantum_2026,
+  title         = {Quantum Low-Density Lattice Codes},
+  author        = {Hillmann, Timo and Eisert, Jens and Arzani, Francesco},
+  year          = {2026},
+  month         = {sep},
+  eprint        = {2609.03021},
+  archiveprefix = {arXiv},
+  primaryclass  = {quant-ph},
+  doi           = {10.48550/arXiv.2609.03021},
+  url           = {https://arxiv.org/abs/2609.03021}
+}
 
 ## License
 
