@@ -130,6 +130,7 @@ If you use this package in your research, please cite:
   doi           = {10.48550/arXiv.2609.03021},
   url           = {https://arxiv.org/abs/2609.03021}
 }
+```
 
 ## License
 
