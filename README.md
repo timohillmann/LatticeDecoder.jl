@@ -131,7 +131,7 @@ If you use this package in your research, please cite:
   url           = {https://arxiv.org/abs/2609.03021}
 }
 ```
-
+</details>
 ## License
 
 This software is released under the [MIT License](LICENSE).
